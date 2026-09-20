@@ -12,6 +12,16 @@ export const strings = {
     "All three drives are listed from the start. None of them works yet; the one being built first is decided in the roadmap.",
   providerNotAvailable: "Not available yet",
 
+  hotkeyHeading: "The capture key",
+  hotkeyNote:
+    "Driveshot sits in the tray and waits for this key. It works wherever you are, without bringing this window up first.",
+  hotkeyHeld: (shortcut: string) => `${shortcut} is yours.`,
+  hotkeyNeverPressed: "It has not been pressed yet.",
+  hotkeyLastPressed: (when: string) => `Last pressed at ${when}.`,
+  hotkeyUnavailable: "The capture key could not be read.",
+  captureNotBuilt:
+    "Capture itself is not built yet, so pressing the key only brings this window up.",
+
   retentionHeading: "How long a shot is kept",
   retentionNote:
     "A shot is deleted from the drive once its retention has run out. The retention is fixed when the shot is uploaded, so changing this later leaves shots already shared on their own terms.",

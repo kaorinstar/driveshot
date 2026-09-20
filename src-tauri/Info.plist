@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+      Driveshot lives in the menu bar, not the Dock. Without this key macOS gives it a Dock icon
+      and an application menu, which is what an application with a window gets; with it, the tray
+      icon is the whole of its presence.
+
+      Tauri merges this file into the bundle's own Info.plist. src-tauri/src/main.rs asks for the
+      same thing at runtime, through the activation policy, so that a debug build started with
+      `tauri dev` behaves the same way - that one never reads this file.
+
+      Untested: nobody has run the macOS build yet (#4).
+    -->
+    <key>LSUIElement</key>
+    <true/>
+</dict>
+</plist>

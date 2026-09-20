@@ -5,6 +5,7 @@
 // that split - a calculation written here is a calculation with no test over it.
 
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { strings } from "./strings";
 
 /** One cloud drive, as `providers` in src-tauri/src/main.rs returns it. */
@@ -17,6 +18,14 @@ interface ProviderInfo {
 /** The answer from `expiry_preview` in src-tauri/src/main.rs. */
 interface ExpiryPreview {
   expires_at: string | null;
+}
+
+/** The answer from `hotkey_status` in src-tauri/src/main.rs. */
+interface HotkeyStatus {
+  shortcut: string;
+  registered: boolean;
+  error: string | null;
+  last_fired: string | null;
 }
 
 /** The retention periods the window offers. `null` means the shot is kept until deleted by hand. */
@@ -34,6 +43,8 @@ function writeStaticText(): void {
   element("subtitle").textContent = strings.subtitle;
   element("destination-heading").textContent = strings.destinationHeading;
   element("destination-note").textContent = strings.destinationNote;
+  element("hotkey-heading").textContent = strings.hotkeyHeading;
+  element("hotkey-note").textContent = strings.hotkeyNote;
   element("retention-heading").textContent = strings.retentionHeading;
   element("retention-note").textContent = strings.retentionNote;
   element("retention-label").textContent = strings.retentionLabel;
@@ -61,6 +72,30 @@ async function drawProviders(): Promise<void> {
     }
 
     list.append(item);
+  }
+}
+
+async function showHotkey(): Promise<void> {
+  const result = element("hotkey");
+
+  try {
+    const status = await invoke<HotkeyStatus>("hotkey_status");
+
+    // A key another application already holds leaves Driveshot with one that does nothing, which
+    // is why the Rust side reports the reason rather than assuming it worked. Its sentence is
+    // shown as it is: it names the combination and what refused it.
+    const held = status.registered
+      ? strings.hotkeyHeld(status.shortcut)
+      : (status.error ?? strings.hotkeyUnavailable);
+
+    const pressed =
+      status.last_fired === null
+        ? strings.hotkeyNeverPressed
+        : strings.hotkeyLastPressed(new Date(status.last_fired).toLocaleString());
+
+    result.textContent = `${held} ${pressed} ${strings.captureNotBuilt}`;
+  } catch {
+    result.textContent = strings.hotkeyUnavailable;
   }
 }
 
@@ -106,7 +141,14 @@ async function start(): Promise<void> {
   element<HTMLSelectElement>("retention").addEventListener("change", () => {
     void showExpiry();
   });
-  await Promise.all([drawProviders(), showExpiry()]);
+
+  // The Rust side brings this window up when the key is pressed. If it was already open, nothing
+  // reloads it, so the time it shows would be the one it read when it opened.
+  await listen("capture-requested", () => {
+    void showHotkey();
+  });
+
+  await Promise.all([drawProviders(), showExpiry(), showHotkey()]);
 }
 
 void start();

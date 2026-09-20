@@ -31,8 +31,11 @@ sets. The link is convenient for as long as it is needed, and stops existing aft
 | Part | State |
 |---|---|
 | Repository, build, tests, CI, packaging | Working |
+| Installing and starting it (Windows) | Verified by hand |
+| Installing and starting it (macOS) | Built, not yet run by anyone |
 | Retention and upload-record logic (`driveshot-core`) | Written and tested |
 | Settings window | A skeleton: it lists the drives and shows when a shot would expire |
+| Tray icon and global hotkey | Built; run on Linux, not yet on Windows or macOS |
 | Screen capture | Not started |
 | Cloud upload and OAuth | Not started |
 | Share links | Not started |
@@ -178,7 +181,7 @@ as `v0.1.0` on `main`, leave the title and description empty, and publish. The t
 
 In the order it is planned, and subject to the two open decisions above.
 
-1. Tray icon and a global hotkey ([#4](https://github.com/kaorinstar/driveshot/issues/4)).
+1. ~~Tray icon and a global hotkey~~ ([#4](https://github.com/kaorinstar/driveshot/issues/4)) — done.
 2. Region capture, saved locally, with no upload ([#5](https://github.com/kaorinstar/driveshot/issues/5)).
 3. One cloud drive end to end: OAuth sign-in, upload, share link on the clipboard ([#6](https://github.com/kaorinstar/driveshot/issues/6)).
 4. The record index on disk, and deletion when a retention runs out ([#7](https://github.com/kaorinstar/driveshot/issues/7)).
