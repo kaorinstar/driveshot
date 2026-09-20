@@ -269,10 +269,13 @@ https://github.com/kaorinstar/driveshot/releases.
 ## History
 
 The repository was set up in a Claude Code session running on Linux. Everything in it was built
-and tested there, the application crate included, but a Linux build only proves the code
-compiles: the window has never been opened, and nothing here has run on Windows or macOS. The
-first `release.yml` run on a real machine is where that changes, and it is the first thing worth
-doing.
+and tested there, the application crate included. `build.yml` then built and tested it on Windows
+and macOS as well, and passed on its first run (#1).
+
+What none of that covers is the application actually running. A build proves the code compiles
+and the tests prove the core crate's arithmetic; the window has never been opened on any
+platform, and no installer has been produced. The first manual `release.yml` run is where that
+changes, and it is the first thing worth doing.
 
 ## Choosing a model for subagents
 
