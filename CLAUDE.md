@@ -117,7 +117,8 @@ npm install
 npm run tauri build
 ```
 
-The installer is under `src-tauri/target/release/bundle/`.
+The installer is under `target/release/bundle/` — the workspace's build directory, at the
+root. `src-tauri/target/` does not exist and never will (#14).
 
 **`build.yml` is not a route to a build.** It compiles and tests and packages nothing, so there is
 no artifact on it to download. Do not send anyone to a `build.yml` run for a file.
