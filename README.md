@@ -36,7 +36,7 @@ sets. The link is convenient for as long as it is needed, and stops existing aft
 | Retention and upload-record logic (`driveshot-core`) | Written and tested |
 | Settings window | A skeleton: it lists the drives and shows when a shot would expire |
 | Tray icon and global hotkey | Verified by hand on Windows |
-| Screen capture | Not started |
+| Region capture, saved locally | Built; needs running on Windows or macOS |
 | Cloud upload and OAuth | Not started |
 | Share links | Not started |
 | Automatic deletion | Not started |
@@ -76,11 +76,13 @@ npm run tauri dev
 
 **Linux is not a platform Driveshot is released for**, and no Linux package is built. The source
 does compile there, which is worth knowing because it is where most of the development happens.
-Tauri draws its window with the operating system's own web view, so building it needs the
-WebKitGTK development packages; on Ubuntu or Debian:
+Building it needs the system libraries behind the web view, the tray and screen capture; on Ubuntu
+or Debian:
 
 ```
-sudo apt-get install libwebkit2gtk-4.1-dev libsoup-3.0-dev libgtk-3-dev librsvg2-dev patchelf
+sudo apt-get install libwebkit2gtk-4.1-dev libsoup-3.0-dev libgtk-3-dev librsvg2-dev \
+  patchelf libayatana-appindicator3-dev libpipewire-0.3-dev libgbm-dev libdrm-dev \
+  libegl1-mesa-dev libwayland-dev libclang-dev clang
 ```
 
 Without them, only the application crate is out of reach, and everything that matters most still
@@ -182,7 +184,7 @@ as `v0.1.0` on `main`, leave the title and description empty, and publish. The t
 In the order it is planned, and subject to the two open decisions above.
 
 1. ~~Tray icon and a global hotkey~~ ([#4](https://github.com/kaorinstar/driveshot/issues/4)) — done.
-2. Region capture, saved locally, with no upload ([#5](https://github.com/kaorinstar/driveshot/issues/5)).
+2. ~~Region capture, saved locally, with no upload~~ ([#5](https://github.com/kaorinstar/driveshot/issues/5)) — done.
 3. One cloud drive end to end: OAuth sign-in, upload, share link on the clipboard ([#6](https://github.com/kaorinstar/driveshot/issues/6)).
 4. The record index on disk, and deletion when a retention runs out ([#7](https://github.com/kaorinstar/driveshot/issues/7)).
 5. The remaining two cloud drives ([#8](https://github.com/kaorinstar/driveshot/issues/8)).

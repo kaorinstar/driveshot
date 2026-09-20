@@ -16,10 +16,11 @@
 //! The rule that shapes this file: a calculation belongs in `driveshot-core`, where it is tested
 //! on every platform. What stays here is what genuinely needs a screen, a file or a network.
 
+mod capture;
 mod strings;
 
 use chrono::{DateTime, SecondsFormat, Utc};
-use driveshot_core::{Provider, Retention};
+use driveshot_core::{Provider, Retention, Selection};
 use serde::Serialize;
 use std::str::FromStr;
 use std::sync::Mutex;
@@ -52,6 +53,13 @@ struct Hotkey {
     /// When it last fired. `None` until it has.
     last_fired: Mutex<Option<DateTime<Utc>>>,
 }
+
+/// Where the last shot was written, so the settings window can say.
+///
+/// A successful capture is deliberately quiet - no window, no sound - so this is how someone
+/// checks that it worked. A failed one is not quiet: it opens the window and says why.
+#[derive(Default)]
+struct LastShot(Mutex<Option<String>>);
 
 /// One cloud drive as the settings window lists it.
 #[derive(Serialize)]
@@ -107,6 +115,67 @@ fn expiry_preview(days: Option<u32>) -> Result<ExpiryPreview, String> {
     })
 }
 
+/// Covers the screens so the user can draw a rectangle on one of them.
+///
+/// Called by the tray menu, the hotkey, and nothing else. A failure here is shown rather than
+/// swallowed: the user pressed a key and is entitled to know that nothing happened.
+fn start_capture(app: &AppHandle) {
+    if let Err(error) = capture::begin(app) {
+        eprintln!("{error}");
+        report(app, &error);
+    }
+}
+
+/// Takes the shot the user selected, or says why it could not.
+///
+/// The overlay calls this once, on the mouse button coming up. `monitor` is the index the overlay
+/// was opened with, which is the monitor the selection is in.
+#[tauri::command]
+fn finish_capture(app: AppHandle, monitor: usize, selection: Selection) -> Result<String, String> {
+    match capture::finish(&app, monitor, selection) {
+        Ok(path) => {
+            let path = path.display().to_string();
+            println!("Shot saved to {path}");
+            if let Some(last) = app.try_state::<LastShot>() {
+                if let Ok(mut slot) = last.0.lock() {
+                    *slot = Some(path.clone());
+                }
+            }
+            Ok(path)
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            report(&app, &error);
+            Err(error)
+        }
+    }
+}
+
+/// Puts the overlays away without taking anything. Escape, or a click that was not a drag.
+#[tauri::command]
+fn cancel_capture(app: AppHandle) {
+    capture::close_all(&app);
+}
+
+/// Where the last shot went, or `null` if none has been taken since Driveshot started.
+#[tauri::command]
+fn last_shot(last: tauri::State<'_, LastShot>) -> Option<String> {
+    last.0.lock().ok().and_then(|slot| slot.clone())
+}
+
+/// Puts a problem where the user will see it: in the settings window, which is brought up for it.
+///
+/// Printing alone is not enough. Driveshot has no window on the screen most of the time, so a
+/// failure nobody is shown is a failure nobody knows about.
+fn report(app: &AppHandle, problem: &str) {
+    if let Some(last) = app.try_state::<LastShot>() {
+        if let Ok(mut slot) = last.0.lock() {
+            *slot = Some(problem.to_owned());
+        }
+    }
+    show_settings(app);
+}
+
 /// The state of the hotkey, as the settings window shows it.
 #[derive(Serialize)]
 struct HotkeyStatus {
@@ -157,8 +226,7 @@ fn show_settings(app: &AppHandle) {
     }
 }
 
-/// What a request to capture does today: records that it happened and brings the window up to say
-/// so. The capture itself is #5.
+/// Notes that a capture was asked for, and asks for it.
 fn capture_requested(app: &AppHandle) {
     if let Some(hotkey) = app.try_state::<Hotkey>() {
         if let Ok(mut last_fired) = hotkey.last_fired.lock() {
@@ -166,13 +234,13 @@ fn capture_requested(app: &AppHandle) {
         }
     }
 
-    show_settings(app);
-
-    // The window reads the time from hotkey_status when it loads; this is for the case where it
-    // was already open, and nothing reloads it.
+    // For a settings window that happens to be open: it shows when the key last fired, and
+    // nothing else would refresh it.
     if let Err(error) = app.emit("capture-requested", ()) {
         eprintln!("the window was not told about the capture request: {error}");
     }
+
+    start_capture(app);
 }
 
 /// Registers the hotkey and reports what happened, which is the whole point: a combination
@@ -273,7 +341,10 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             providers,
             expiry_preview,
-            hotkey_status
+            hotkey_status,
+            finish_capture,
+            cancel_capture,
+            last_shot
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -293,6 +364,7 @@ fn main() {
                 Some(error) => eprintln!("{error}"),
             }
             app.manage(hotkey);
+            app.manage(LastShot::default());
 
             build_tray(&handle)?;
 

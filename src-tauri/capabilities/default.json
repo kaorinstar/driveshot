@@ -1,8 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "What the settings window is allowed to ask the Rust side to do. Nothing is granted here that the window does not already need: a permission added to this list is a permission the page keeps for as long as it is open.",
-  "windows": ["main"],
+  "description": "What the settings window and the capture overlays are allowed to ask the Rust side to do. Nothing is granted here that they do not already need: a permission added to this list is a permission those pages keep for as long as they are open. The overlays are matched by a pattern because there is one of them per monitor.",
+  "windows": [
+    "main",
+    "overlay-*"
+  ],
   "permissions": [
     "core:default",
     "opener:allow-open-url"

@@ -1,0 +1,56 @@
+/* The selection overlay. One of these covers each monitor while a shot is being taken. */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* The window itself is transparent; this is what dims the screen under it. Light enough to see
+     what is being selected through, dark enough to show that the screen is not itself. */
+  background: rgba(0, 0, 0, 0.28);
+  /* Nothing here is text to select, and a drag that starts selecting the hint instead of drawing a
+     rectangle is a drag that did nothing. */
+  user-select: none;
+  cursor: crosshair;
+}
+
+.overlay {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.overlay__hint {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(20, 22, 26, 0.82);
+  color: #f1f2f4;
+  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* The part being selected: undimmed, so what is inside the rectangle is what the shot will hold.
+   The huge shadow is what lifts the dimming inside the rectangle - a hole cannot be cut in a
+   background, but a box shadow large enough to cover the screen can be drawn around one. */
+.overlay__selection {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.28);
+  background: transparent;
+  pointer-events: none;
+}
+
+.overlay__selection[hidden] {
+  display: none;
+}

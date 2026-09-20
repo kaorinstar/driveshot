@@ -23,6 +23,15 @@ in [README.md](README.md).
 - If another application already holds that combination, Driveshot says so instead of leaving you
   with a key that quietly does nothing: it opens the settings window at startup and names what
   refused it.
-- **Capture itself is not built yet.** Pressing the key, or choosing Capture from the menu, only
-  brings the settings window up and notes the time. Uploading, sharing and deleting are not built
-  either. The roadmap in [README.md](README.md) says in which order they arrive.
+- **The key now takes a shot.** It dims every screen; drag a rectangle on one of them and that
+  part of it is saved. Escape, a right click, or a click without a drag puts the overlay away and
+  takes nothing.
+- Shots are saved to a **Driveshot folder inside your pictures folder**, named after the moment
+  they were taken — `driveshot-20260920-143052.png`. That is where they stay for now.
+- A shot that could not be taken or could not be saved is not passed over in silence: the settings
+  window opens and says what went wrong. On a Mac that includes being refused permission to record
+  the screen, which macOS asks about the first time.
+- The settings window shows where the last shot went, so you can tell it worked without going
+  looking for the file.
+- **Uploading, sharing and deleting are still not built.** A shot stays on your own machine. The
+  roadmap in [README.md](README.md) says in which order the rest arrives.

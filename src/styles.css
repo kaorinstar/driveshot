@@ -147,3 +147,18 @@ body {
      jumping as it does. */
   min-height: 2.6em;
 }
+
+/* A result that is the only thing in its card has nothing above it to be separated from. */
+.result--first {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* A saved path is a path: it should be readable as one, and it should not push the card wider
+   than the window. */
+#last-shot {
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}

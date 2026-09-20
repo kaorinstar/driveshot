@@ -12,6 +12,13 @@ export const strings = {
     "All three drives are listed from the start. None of them works yet; the one being built first is decided in the roadmap.",
   providerNotAvailable: "Not available yet",
 
+  overlayHint: "Drag to select an area. Esc to cancel.",
+
+  lastShotHeading: "The last shot",
+  lastShotNone: "Nothing has been captured yet.",
+  lastShotSaved: (path: string) => `Saved to ${path}`,
+  lastShotUnavailable: "What happened to the last shot could not be read.",
+
   hotkeyHeading: "The capture key",
   hotkeyNote:
     "Driveshot sits in the tray and waits for this key. It works wherever you are, without bringing this window up first.",

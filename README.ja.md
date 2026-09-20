@@ -35,7 +35,7 @@
 | 保存期間とアップロード記録の処理（`driveshot-core`） | 実装・テスト済み |
 | 設定ウィンドウ | 骨組み。保存先の一覧と削除予定日時を表示する |
 | トレイ常駐とホットキー | Windowsの実機で確認済み |
-| 画面の取り込み | 未着手 |
+| 画面の一部の取り込みとローカル保存 | 実装済み。WindowsまたはmacOSでの確認が必要 |
 | クラウドへのアップロードとOAuth認証 | 未着手 |
 | 共有URLの発行 | 未着手 |
 | 期限による自動削除 | 未着手 |
@@ -74,11 +74,13 @@ npm run tauri dev
 
 **LinuxはDriveshotの配布対象ではありません。** Linux向けのパッケージは作りません。ただし、
 ソースはLinuxでもビルドできます。開発作業の多くはLinux上で行うため、この点は重要です。
-TauriはOS標準の表示エンジンを使うため、ビルドにはWebKitGTKの開発用パッケージが必要です。
+ビルドには、表示エンジン・トレイ・画面取り込みが使うシステムライブラリが必要です。
 Ubuntu・Debianの場合は次のとおりです。
 
 ```
-sudo apt-get install libwebkit2gtk-4.1-dev libsoup-3.0-dev libgtk-3-dev librsvg2-dev patchelf
+sudo apt-get install libwebkit2gtk-4.1-dev libsoup-3.0-dev libgtk-3-dev librsvg2-dev \
+  patchelf libayatana-appindicator3-dev libpipewire-0.3-dev libgbm-dev libdrm-dev \
+  libegl1-mesa-dev libwayland-dev libclang-dev clang
 ```
 
 これらを導入しない場合、実行できないのはアプリ本体のビルドだけです。重要な部分は次の範囲で
@@ -175,7 +177,7 @@ tools/make-icon.py       アプリのアイコンを描画する。詳細はフ�
 予定している順序です。前述の未決定事項2点の結論により変わる可能性があります。
 
 1. ~~タスクトレイへの常駐と、グローバルホットキー~~（[#4](https://github.com/kaorinstar/driveshot/issues/4)）— 完了。
-2. 画面の一部の取り込み。ローカル保存のみで、アップロードはしない（[#5](https://github.com/kaorinstar/driveshot/issues/5)）。
+2. ~~画面の一部の取り込み。ローカル保存のみで、アップロードはしない~~（[#5](https://github.com/kaorinstar/driveshot/issues/5)）— 完了。
 3. クラウドドライブ1つの一連の流れ。OAuth認証、アップロード、共有URLのクリップボードへのコピー（[#6](https://github.com/kaorinstar/driveshot/issues/6)）。
 4. アップロード記録の保存と、保存期間経過後の削除（[#7](https://github.com/kaorinstar/driveshot/issues/7)）。
 5. 残り2つのクラウドドライブへの対応（[#8](https://github.com/kaorinstar/driveshot/issues/8)）。
