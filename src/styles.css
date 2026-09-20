@@ -1,0 +1,149 @@
+/* The window follows the light and dark setting of the machine it runs on, through
+   prefers-color-scheme alone. Nothing here asks the operating system directly: the web view
+   already knows, on both Windows and macOS. */
+
+:root {
+  color-scheme: light dark;
+
+  --page-background: #f5f6f8;
+  --card-background: #ffffff;
+  --card-border: #e2e5ea;
+  --text: #1b1d21;
+  --text-muted: #5d6470;
+  --accent: #2f6fd0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page-background: #1b1d21;
+    --card-background: #24272c;
+    --card-border: #343841;
+    --text: #f1f2f4;
+    --text-muted: #a6adba;
+    --accent: #6ea8f5;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--page-background);
+  color: var(--text);
+  /* The font the platform uses for its own windows, so the settings look like a part of it. */
+  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+
+.page__header {
+  margin-bottom: 24px;
+}
+
+.page__title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.page__subtitle {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+
+.card {
+  background: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin-bottom: 20px;
+}
+
+.card__title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.card__note {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.providers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.providers__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--card-border);
+}
+
+.providers__item:first-child {
+  border-top: none;
+}
+
+.providers__name {
+  font-weight: 550;
+}
+
+.providers__state {
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.field__label {
+  font-weight: 550;
+}
+
+.field__control {
+  flex: 1 1 200px;
+  min-width: 180px;
+  padding: 8px 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: var(--card-background);
+  color: var(--text);
+  font: inherit;
+}
+
+.field__control:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.result {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--card-border);
+  color: var(--text-muted);
+  font-size: 14px;
+  /* The sentence changes length as the retention changes; a fixed height stops the card from
+     jumping as it does. */
+  min-height: 2.6em;
+}

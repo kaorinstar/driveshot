@@ -1,0 +1,27 @@
+# Logic that depends on neither the user interface nor an operating system API.
+#
+# Nothing here opens a window, reads the screen or makes a network call, so this crate builds and
+# its tests run on any platform. That is the point of it: the parts that decide what happens - when
+# a file has outlived its retention, what a record of an upload holds - can be checked without a
+# Windows or a macOS machine, and without an account at any cloud service.
+#
+# Keep it that way. A dependency that pulls in a window system, a screen capture library or an
+# HTTP client belongs in src-tauri instead.
+
+[package]
+name = "driveshot-core"
+version = "0.0.0"
+description = "Retention and upload-record logic for Driveshot, free of any UI or OS dependency"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+# Published as part of the application, not to crates.io on its own.
+publish = false
+
+[dependencies]
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

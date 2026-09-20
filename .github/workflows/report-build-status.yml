@@ -1,0 +1,121 @@
+# Called by build.yml and release.yml once their jobs have finished, and only for pushes.
+#
+# A failure outside a pull request otherwise leaves no record. GitHub emails whoever triggered the
+# run, and that is all; the runs that matter here are the ones nobody is watching — a Dependabot
+# update, a tag build that fails halfway through producing a release. Pull requests are excluded
+# deliberately: a failing pull request already shows the failure on itself, and an issue per push
+# would bury the tracker.
+#
+# One issue at a time. If an open issue labelled ci-failure exists, a new failure is a comment on
+# it rather than a second issue, because one recurring failure would otherwise open one issue per
+# run. The next success comments on the same issue, so it shows the symptom is gone, but does not
+# close it: a green build does not prove the cause was understood. Closing is left to a person.
+#
+# This file came from the windows-simple-tasktabbar repository and is deliberately unchanged in
+# substance: it calls the GitHub API and nothing else, so it says nothing about which language
+# the project it reports on is written in.
+
+name: report build status
+
+on:
+  workflow_call:
+    inputs:
+      outcome:
+        description: The combined result of the jobs in the calling workflow.
+        required: true
+        type: string
+
+jobs:
+  report:
+    # Nothing is built here. The job only calls the GitHub API, so it does not need Windows.
+    runs-on: ubuntu-latest
+    if: inputs.outcome == 'failure' || inputs.outcome == 'success'
+
+    steps:
+      - name: Open, or comment on, the build failure issue
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9.0.0
+        env:
+          OUTCOME: ${{ inputs.outcome }}
+        with:
+          script: |
+            const label = 'ci-failure';
+            const { owner, repo } = context.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const ref = context.ref.replace(/^refs\/(heads|tags)\//, '');
+
+            // listForRepo returns pull requests as well; they are not what this is tracking.
+            const labelled = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'open', labels: label, per_page: 100,
+            });
+            const issue = labelled.find(i => !i.pull_request);
+
+            if (process.env.OUTCOME === 'success') {
+              if (!issue) {
+                core.info('The build succeeded and no failure issue is open. Nothing to report.');
+                return;
+              }
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: issue.number,
+                body: [
+                  `The \`${context.workflow}\` workflow succeeded again on \`${ref}\`.`,
+                  '',
+                  `- Run: ${runUrl}`,
+                  `- Commit: ${context.sha}`,
+                  '',
+                  'This issue stays open on purpose. A green build shows the symptom is gone, not',
+                  'that the cause was understood. Close it once it is.',
+                ].join('\n'),
+              });
+              core.info(`Reported the success on #${issue.number}.`);
+              return;
+            }
+
+            // Name the job and the step that failed. This job is still in progress while it runs,
+            // so filtering on a failed conclusion also excludes it.
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner, repo, run_id: context.runId, per_page: 100,
+            });
+            const failed = jobs
+              .filter(j => j.conclusion === 'failure')
+              .map(j => {
+                const step = (j.steps || []).find(s => s.conclusion === 'failure');
+                return step ? `  - \`${j.name}\` → \`${step.name}\`` : `  - \`${j.name}\``;
+              });
+
+            const body = [
+              `The \`${context.workflow}\` workflow failed on \`${ref}\`.`,
+              '',
+              `- Run: ${runUrl}`,
+              `- Commit: ${context.sha}`,
+              failed.length
+                ? `- Failed:\n${failed.join('\n')}`
+                : '- Failed: no job reported a failing step.',
+              '',
+              'The log is on the run page and is not copied here.',
+            ].join('\n');
+
+            if (issue) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body });
+              core.info(`Commented on #${issue.number} instead of opening a second issue.`);
+              return;
+            }
+
+            // The label has to exist before it can be applied, and the first failure is the first
+            // time anything needs it.
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: label });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.issues.createLabel({
+                owner, repo, name: label, color: 'b60205',
+                description: 'A build failed outside a pull request',
+              });
+            }
+
+            const created = await github.rest.issues.create({
+              owner, repo,
+              title: `${context.workflow} failed on ${ref}`,
+              labels: [label],
+              body,
+            });
+            core.info(`Opened #${created.data.number}.`);

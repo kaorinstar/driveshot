@@ -1,0 +1,243 @@
+# Distribution: build, test, package, and attach the packages to a release.
+#
+# Two files are published, one per platform: a Windows installer and a macOS disk image. Neither
+# is code-signed. SmartScreen warns on Windows, and macOS refuses to open the application until it
+# is allowed through System Settings; README.md says so where someone downloading it will read it.
+#
+# A tag push publishes the release. The tag decides both the version stamped into the packages and
+# the notes, which are taken from the matching section of version.md. A manual run is a dry run: it
+# produces the same two packages as a workflow artifact, stamped with the version already in
+# src-tauri/Cargo.toml, and creates no release, so a change here can be tried out before a tag
+# exists.
+#
+# The build steps repeat those in .github/workflows/build.yml, except that this one writes the
+# version from the tag into src-tauri/Cargo.toml first. Change them in both files.
+
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Everything the tag decides is worked out here, before anything is built, so that a bad tag
+  # fails within seconds instead of after two packages have been produced. Nothing is compiled, so
+  # it runs on Linux whatever the packages are built on.
+  prepare:
+    name: work out the version and the notes
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+
+      - name: Take the version from the tag, or from src-tauri/Cargo.toml on a manual run
+        id: version
+        shell: bash
+        env:
+          # Through the environment rather than inline, so that a tag name cannot become script.
+          TAG: ${{ github.ref_name }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          set -euo pipefail
+
+          if [ "$IS_TAG" = "true" ]; then
+            # vMAJOR.MINOR.PATCH: three plain integers, as semantic versioning requires, and no
+            # leading zeros. A pre-release suffix such as -beta1 is not accepted; adding one means
+            # widening this pattern deliberately, and checking what the installers make of it.
+            if ! printf '%s' "$TAG" | grep -Eq '^v(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*)){2}$'; then
+              echo "::error::Tag '$TAG' is not of the form vMAJOR.MINOR.PATCH, with no leading zeros. For example: v0.1.0"
+              exit 1
+            fi
+            version="${TAG#v}"
+          else
+            # A manual run keeps whatever src-tauri/Cargo.toml already says. Reading it rather
+            # than guessing matters: a package named after a version other than the one inside it
+            # is worse than a package with no version in its name at all.
+            version=$(sed -n '/^\[package\]/,/^\[/ s/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -1)
+            if [ -z "$version" ]; then
+              echo "::error::src-tauri/Cargo.toml has no version under [package] for this run to fall back on."
+              exit 1
+            fi
+          fi
+
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          echo "Version for this run: $version"
+
+      # The notes come from version.md rather than from the commit log, because what changed for
+      # someone using the application is not the same list as what was merged.
+      - name: Take the release notes from version.md
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          awk -v heading="## $TAG" '
+            $0 == heading { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' version.md >release-notes.md
+
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "::error::version.md has no '## $TAG' section, or that section is empty. Write the entry, commit it, and move the tag onto that commit."
+            exit 1
+          fi
+
+          echo "Release notes for $TAG:"
+          cat release-notes.md
+
+      - name: Keep the notes for the publish job
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+        with:
+          name: release-notes
+          path: release-notes.md
+
+  bundle:
+    name: package (${{ matrix.os }})
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: driveshot-windows
+          - os: macos-latest
+            artifact: driveshot-macos
+
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de   # stable
+        with:
+          toolchain: stable
+
+      # A macOS package covers both the Apple Silicon machines the runner is one of and the Intel
+      # machines it is not, so the second target has to be installed for the build to have
+      # anything to join together.
+      - name: Add the second macOS target (the package covers both)
+        if: runner.os == 'macOS'
+        run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
+
+      - name: Cache the Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
+        with:
+          workspaces: '. -> target'
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020   # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      # src-tauri/Cargo.toml is the one place a release number is written, and this is where the
+      # tag is written into it. Only the version under [package] is touched: the dependency
+      # versions below it are left alone, which is what the range on the substitution is for.
+      - name: Write the version into src-tauri/Cargo.toml
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          sed -i.bak '/^\[package\]/,/^\[dependencies\]/ s/^version = ".*"/version = "'"$VERSION"'"/' src-tauri/Cargo.toml
+          rm -f src-tauri/Cargo.toml.bak
+
+          written=$(sed -n '/^\[package\]/,/^\[/ s/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -1)
+          if [ "$written" != "$VERSION" ]; then
+            echo "::error::src-tauri/Cargo.toml says '$written' after the substitution, not '$VERSION'."
+            exit 1
+          fi
+          echo "src-tauri/Cargo.toml now carries version $VERSION"
+
+      - name: Install the settings window's dependencies
+        run: npm ci
+
+      - name: Build the settings window
+        run: npm run build
+
+      - name: Test the whole workspace
+        run: cargo test --workspace
+
+      - name: Package the application
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            npm run tauri build -- --target universal-apple-darwin
+          else
+            npm run tauri build
+          fi
+
+      # The installers land in a folder named after the target, which differs between the two
+      # platforms, so they are collected into one place with one name before being uploaded. Only
+      # the two extensions a release carries are copied: a file that appeared in the bundle folder
+      # for some other reason cannot find its way into a release this way.
+      - name: Collect the packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          find src-tauri/target -type f \( -name '*.exe' -o -name '*.dmg' \) \
+            -path '*/bundle/*' -exec cp {} artifacts/ \;
+
+          if [ -z "$(ls -A artifacts)" ]; then
+            echo "::error::The build produced no installer. The bundler's output is above."
+            exit 1
+          fi
+          ls -l artifacts
+
+      - name: Upload the packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+        with:
+          name: ${{ matrix.artifact }}
+          path: artifacts/
+
+  # A manual run stops after the job above: the packages are there to download, and nothing is
+  # published. Only a v* tag reaches this job.
+  publish:
+    name: publish the release
+    needs: [prepare, bundle]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      # The one job in this repository that can write to it.
+      contents: write
+
+    steps:
+      - name: Download everything the build produced
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c   # v8.0.1
+        with:
+          path: downloads
+
+      - name: Show what is being published
+        shell: bash
+        run: find downloads -type f -exec ls -l {} \;
+
+      - name: Attach the packages to a release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64   # v3.0.3
+        with:
+          files: |
+            downloads/driveshot-windows/*.exe
+            downloads/driveshot-macos/*.dmg
+          body_path: downloads/release-notes/release-notes.md
+
+  report:
+    needs: [prepare, bundle, publish]
+    if: always() && github.event_name == 'push'
+    uses: ./.github/workflows/report-build-status.yml
+    with:
+      outcome: ${{ (needs.prepare.result == 'success' && needs.bundle.result == 'success' && needs.publish.result == 'success') && 'success' || 'failure' }}
+    permissions:
+      contents: read
+      issues: write

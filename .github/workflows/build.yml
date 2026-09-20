@@ -1,0 +1,164 @@
+# Verification only: does the source still build, do the tests still pass, and is anything in the
+# dependency tree known to be a problem?
+#
+# Packaging and publishing live in .github/workflows/release.yml. The build steps below are
+# deliberately repeated there rather than shared through a composite action, because two files
+# that can each be read straight through are easier to follow than one indirection. Change them
+# together. The one deliberate difference is the version: a release build takes it from the tag,
+# while this one keeps the value in src-tauri/Cargo.toml.
+#
+# Three jobs, because they need three different machines:
+#
+#   core     Linux. driveshot-core depends on no operating system API, so its tests run here in
+#            seconds, and the formatting and the settings window are checked in the same place.
+#   app      Windows and macOS, which are the two platforms Driveshot is built for. The web view
+#            the application embeds is part of the operating system, so the application crate
+#            cannot be compiled anywhere else.
+#   deny     Linux. cargo-deny reads the dependency graph rather than compiling it.
+
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A second push to the same branch makes the run already going pointless, so it is cancelled.
+# Never on main: a run there is the record of whether that commit was good.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  core:
+    name: core and settings window
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de   # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Cache the Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020   # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      # Formatting is checked once, here, rather than on every platform: the answer cannot differ
+      # between them.
+      - name: Check the formatting
+        run: cargo fmt --all -- --check
+
+      # Only driveshot-core. The application crate needs a web view that exists on Windows and
+      # macOS alone, so it is built in the job below rather than here.
+      - name: Lint driveshot-core (warnings treated as errors)
+        run: cargo clippy -p driveshot-core --all-targets -- -D warnings
+
+      - name: Test driveshot-core
+        run: cargo test -p driveshot-core
+
+      - name: Install the settings window's dependencies
+        run: npm ci
+
+      # tsc runs first and fails on an unused variable, so this covers the types as well as the
+      # bundle.
+      - name: Build the settings window
+        run: npm run build
+
+  app:
+    name: application (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing is worth knowing about on the other as well, so the second job is
+      # not cancelled when the first fails.
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de   # stable
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Cache the Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6   # v2.9.2
+        with:
+          workspaces: '. -> target'
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020   # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install the settings window's dependencies
+        run: npm ci
+
+      # The application crate embeds what this produces, so it has to exist before cargo runs.
+      # Building it separately here, rather than letting Tauri's beforeBuildCommand do it, is what
+      # lets the steps below be plain cargo commands.
+      - name: Build the settings window
+        run: npm run build
+
+      - name: Lint the whole workspace (warnings treated as errors)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test the whole workspace
+        run: cargo test --workspace
+
+      # Nothing is packaged here; release.yml does that. This proves the release profile compiles,
+      # which the debug builds above do not: panic = "abort" and link-time optimisation are
+      # release-only settings and have broken a build before they were ever used.
+      - name: Build the application in release configuration
+        run: cargo build --workspace --release
+
+  deny:
+    name: dependency licences and advisories
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+
+      # Two questions in one pass, both of them about other people's code: is there a known
+      # vulnerability against anything in the tree, and is every licence one a MIT-licensed
+      # application can ship? deny.toml holds the answers it checks against, and its comments say
+      # why each licence is on the list.
+      - name: Check the dependencies
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25   # v2.1.1
+        with:
+          command: check
+          arguments: --all-features
+
+  # A failure here leaves no record otherwise: GitHub emails whoever triggered the run and that is
+  # all. Pushes only - a failing pull request already shows the failure on itself. The permission
+  # is granted to this job alone, so the jobs above keep their read-only token.
+  report:
+    needs: [core, app, deny]
+    if: always() && github.event_name == 'push'
+    uses: ./.github/workflows/report-build-status.yml
+    with:
+      outcome: ${{ (needs.core.result == 'success' && needs.app.result == 'success' && needs.deny.result == 'success') && 'success' || 'failure' }}
+    permissions:
+      # contents: read so the call can read the reusable workflow file beside this one.
+      contents: read
+      issues: write

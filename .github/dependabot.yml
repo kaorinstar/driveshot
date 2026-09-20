@@ -1,0 +1,43 @@
+# Dependabot opens a pull request when something this repository depends on has a newer version.
+# Those pull requests run .github/workflows/build.yml like any other, so an update that breaks the
+# build on Windows or macOS is caught before it is merged.
+#
+# Three ecosystems are watched. Cargo covers the Rust crates, npm covers the settings window, and
+# GitHub Actions covers the actions the workflows use, which are pinned to commit SHAs: without
+# this, pinning would mean going stale.
+#
+# Dependabot names its own branches (dependabot/...). That is outside the branch naming convention
+# in CLAUDE.md and cannot be changed.
+version: 2
+
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Tauri is a set of crates released together, and a pull request that moves one of them
+      # alone can leave two halves of the same release in one build. Grouped, they arrive as one
+      # pull request that can be judged as one change.
+      tauri:
+        patterns:
+          - 'tauri'
+          - 'tauri-*'
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # @tauri-apps/api and @tauri-apps/cli move with the Rust crates above, for the same reason.
+      tauri:
+        patterns:
+          - '@tauri-apps/*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

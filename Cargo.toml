@@ -1,0 +1,41 @@
+# The workspace holds two crates, and the split between them is the one design rule that
+# everything else here depends on.
+#
+#   crates/driveshot-core   Logic that depends on neither the user interface nor an operating
+#                           system API. It compiles and is tested on any platform, including the
+#                           Linux machines an assistant usually works on.
+#   src-tauri               The application itself: the tray icon, the hotkey, the capture, the
+#                           cloud calls, and the window that shows the settings.
+#
+# Put a calculation in the core crate first. Only the part that genuinely needs a window, a
+# screen or a network call belongs in src-tauri.
+#
+# The version of a release is written in src-tauri/Cargo.toml and nowhere else. Do not add a
+# version to [workspace.package]: the Tauri bundler reads the application crate's own manifest,
+# and a second place to write the number is a second place to forget it.
+
+[workspace]
+resolver = "2"
+members = ["crates/driveshot-core", "src-tauri"]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.82"
+license = "MIT"
+repository = "https://github.com/kaorinstar/driveshot"
+authors = ["Kaoru Ishikura"]
+
+[workspace.dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+# A release build is what users download, so it is built for size and for a useful backtrace.
+# The debug build keeps the defaults, because a slow compile is what hurts there.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

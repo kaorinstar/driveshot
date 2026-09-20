@@ -1,0 +1,9 @@
+# The toolchain every machine uses, so that a warning seen locally is the warning CI sees.
+#
+# "stable" rather than a pinned number: the build treats warnings as errors, and a pinned
+# toolchain turns a new lint in a later Rust into a surprise for whoever updates this line,
+# instead of a failure on the pull request that introduced it. The minimum the crates accept
+# is rust-version in Cargo.toml.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]

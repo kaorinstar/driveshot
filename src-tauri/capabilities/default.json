@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "What the settings window is allowed to ask the Rust side to do. Nothing is granted here that the window does not already need: a permission added to this list is a permission the page keeps for as long as it is open.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:allow-open-url"
+  ]
+}

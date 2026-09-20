@@ -1,0 +1,82 @@
+# cargo-deny reads this file. It answers two questions about every crate in the dependency tree,
+# direct and transitive alike:
+#
+#   1. Is there a known vulnerability against it? (RustSec's advisory database)
+#   2. Is its licence one this project can ship?
+#
+# The second question is why this file exists rather than cargo-audit alone. Rust crates
+# conventionally carry MIT OR Apache-2.0, but a convention is not a guarantee, and Driveshot is
+# published under MIT. A dependency under a copyleft licence would bind the whole application, so
+# it is caught here rather than discovered after a release.
+#
+# Run it locally with:
+#
+#   cargo install cargo-deny
+#   cargo deny check
+
+[graph]
+# The licences and advisories that matter are the ones on the platforms Driveshot is built for.
+# Without this, the Linux-only dependencies of the web view - which nothing here ships - are
+# judged as well, and a failure among them would stop a build for Windows and macOS.
+targets = [
+    { triple = "x86_64-pc-windows-msvc" },
+    { triple = "aarch64-pc-windows-msvc" },
+    { triple = "x86_64-apple-darwin" },
+    { triple = "aarch64-apple-darwin" },
+]
+all-features = false
+
+[advisories]
+version = 2
+# A crate nobody maintains any more is a risk worth knowing about when it is a crate this project
+# chose. Deep inside somebody else's dependency tree it is not actionable: Tauri reaches the
+# unic-* crates through urlpattern, there is no newer version of them to move to, and nothing
+# here can change that. So the check covers what this workspace depends on directly and stops
+# there. Known vulnerabilities are a different matter and are refused anywhere in the tree,
+# however deep, which is the default and is deliberately not changed.
+unmaintained = "workspace"
+# Nothing is ignored. An advisory that has to be lived with is written here, with the identifier
+# and the reason, rather than by turning a check off.
+ignore = []
+
+[licenses]
+version = 2
+# Every licence below is one that appears in the tree today, and each is compatible with
+# shipping a MIT-licensed application. The list is kept to what is actually used: cargo-deny
+# warns about an allowance nothing matches, and an entry left in "just in case" is an entry
+# nobody can explain later. Add one in the pull request that needs it, with the dependency named.
+#
+# MPL-2.0 is the one to be aware of. Five crates carry it - cssparser, cssparser-macros,
+# dtoa-short, option-ext and selectors - all reached through the web view. Its copyleft is per
+# file: using those files unchanged in a larger work under another licence is exactly what it
+# allows. Changing one of them would mean publishing that file's source under MPL-2.0, so do not
+# vendor and patch them without reading it.
+allow = [
+    "MIT",
+    "MIT-0",
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.9
+
+[bans]
+# Two versions of the same crate make a build larger but break nothing, and a workspace this size
+# cannot usually do anything about one that arrives through a dependency.
+multiple-versions = "allow"
+# A dependency written as "*" takes whatever version happens to be published, which makes a build
+# depend on the day it ran. The path dependency on driveshot-core is exempt: it carries no version
+# because it is in this workspace and is built from the source beside it, never fetched.
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+# Everything comes from crates.io. A dependency pulled straight from a git repository would be
+# code that no published version corresponds to.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

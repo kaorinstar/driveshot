@@ -1,0 +1,30 @@
+# The application: the tray icon, the hotkey, the capture, the cloud calls, and the settings
+# window. Anything here that turns out not to need a screen, a file or a network belongs in
+# driveshot-core instead, where it can be tested on any platform.
+#
+# The version below is the single place a release number is written. The Tauri bundler reads it
+# from here when tauri.conf.json does not name one, and tauri.conf.json deliberately does not.
+# .github/workflows/release.yml rewrites this one line from the tag it was started by.
+
+[package]
+name = "driveshot"
+version = "0.1.0"
+description = "Capture part of the screen, upload it to your own cloud drive, share the link, and delete it when it expires"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+# The application is distributed as an installer, not as a crate.
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+driveshot-core = { path = "../crates/driveshot-core" }
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
