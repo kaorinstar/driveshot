@@ -37,9 +37,10 @@
 | 共有URLの発行 | 未着手 |
 | 期限による自動削除 | 未着手 |
 
-設計上の未決定事項が2点あります。最初に対応するクラウドドライブの数と、パソコンの電源が切れて
-いる間も削除を実行する必要があるかどうかです。それぞれの選択肢と負担は
-[docs/architecture.ja.md](docs/architecture.ja.md) に記載しています。
+設計上の未決定事項が2点あります。最初に対応するクラウドドライブの数
+（[#2](https://github.com/kaorinstar/driveshot/issues/2)）と、パソコンの電源が切れている間も削除を
+実行する必要があるかどうか（[#3](https://github.com/kaorinstar/driveshot/issues/3)）です。
+それぞれの選択肢と負担は [docs/architecture.ja.md](docs/architecture.ja.md) に記載しています。
 
 ## 動作条件
 
@@ -131,7 +132,7 @@ tools/make-icon.py       アプリのアイコンを描画する。詳細はフ�
 `cargo install cargo-deny` の後に `cargo deny check` を実行してください。
 
 **CodeQLはまだ設定していません。** コードスキャンは公開リポジトリでのみ無料のため、このリポジトリ
-の公開時に追加します。
+の公開時に追加します（[#10](https://github.com/kaorinstar/driveshot/issues/10)）。
 
 ## リリース手順
 
@@ -156,7 +157,8 @@ tools/make-icon.py       アプリのアイコンを描画する。詳細はフ�
 
 - **コード署名をしていません。** Windowsのインストーラーは未署名のため、初回実行時にSmartScreenの
   警告が出ます。macOS版は署名も公証もしていないため、「システム設定」→「プライバシーとセキュリティ」
-  で許可するまで起動できません。どちらも証明書の購入で解決しますが、未対応です。
+  で許可するまで起動できません。どちらも証明書の購入で解決しますが、未対応です
+  （[#12](https://github.com/kaorinstar/driveshot/issues/12)）。
 - **保存期間の処理は、Driveshotの動作中のみ実行されます。** 期限を過ぎてもパソコンの電源が入って
   いなければ、次回起動時まで削除されません。詳細は
   [docs/architecture.ja.md](docs/architecture.ja.md) を参照してください。
@@ -167,12 +169,12 @@ tools/make-icon.py       アプリのアイコンを描画する。詳細はフ�
 
 予定している順序です。前述の未決定事項2点の結論により変わる可能性があります。
 
-1. タスクトレイへの常駐と、グローバルホットキー。
-2. 画面の一部の取り込み。ローカル保存のみで、アップロードはしない。
-3. クラウドドライブ1つの一連の流れ。OAuth認証、アップロード、共有URLのクリップボードへのコピー。
-4. アップロード記録の保存と、保存期間経過後の削除。
-5. 残り2つのクラウドドライブへの対応。
-6. 設定の保存。保存期間、ホットキー、保存先。
+1. タスクトレイへの常駐と、グローバルホットキー（[#4](https://github.com/kaorinstar/driveshot/issues/4)）。
+2. 画面の一部の取り込み。ローカル保存のみで、アップロードはしない（[#5](https://github.com/kaorinstar/driveshot/issues/5)）。
+3. クラウドドライブ1つの一連の流れ。OAuth認証、アップロード、共有URLのクリップボードへのコピー（[#6](https://github.com/kaorinstar/driveshot/issues/6)）。
+4. アップロード記録の保存と、保存期間経過後の削除（[#7](https://github.com/kaorinstar/driveshot/issues/7)）。
+5. 残り2つのクラウドドライブへの対応（[#8](https://github.com/kaorinstar/driveshot/issues/8)）。
+6. 設定の保存。保存期間、ホットキー、保存先（[#9](https://github.com/kaorinstar/driveshot/issues/9)）。
 
 ## 開発に参加する場合
 

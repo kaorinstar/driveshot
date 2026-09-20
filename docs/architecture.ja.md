@@ -60,6 +60,11 @@ Driveshotの目的である4つの機能は、いずれも未実装です。
 3. ファイルを「リンクを知っている人は閲覧可」に設定し、URLを取得して**共有する**。
 4. 保存期間を過ぎたら**削除する**。
 
+それぞれIssueを用意しています。画面の取り込みは [#5](https://github.com/kaorinstar/driveshot/issues/5)、
+最初のクラウドドライブ一連の流れは [#6](https://github.com/kaorinstar/driveshot/issues/6)、
+記録の保存と削除は [#7](https://github.com/kaorinstar/driveshot/issues/7)、
+これらの前提となるトレイ常駐とホットキーは [#4](https://github.com/kaorinstar/driveshot/issues/4) です。
+
 現在のウィンドウは、3つの保存先を一覧表示し、いま撮った画像がいつ削除されるかを表示します。
 どちらの答えもcoreが計算し、`src-tauri/src/main.rs` の2つのTauriコマンド経由で渡しています。
 これは意図した骨組みです。難しい処理を書く前に、ウィンドウからcore、テスト、CI、インストーラー
@@ -70,7 +75,7 @@ Driveshotの目的である4つの機能は、いずれも未実装です。
 どちらも、決めなくても開発は進められます。ただし決め方によって作るものが変わるため、記録して
 おきます。
 
-### 最初に対応する保存先の数
+### 最初に対応する保存先の数（[#2](https://github.com/kaorinstar/driveshot/issues/2)）
 
 Googleドライブ、OneDrive、Dropboxは、認証方法・アップロード方法・共有URLの発行方法がそれぞれ
 異なります。`Provider` には最初から3つすべてを定義しています。保存先の識別子はすべての記録に
@@ -80,7 +85,7 @@ Googleドライブ、OneDrive、Dropboxは、認証方法・アップロード�
 1つずつ進める方が負担は小さく、動くアプリを早く用意できます。3つ同時に進めると、最初の1つに
 引きずられない抽象化を作らざるを得ません。
 
-### 削除処理をどこで実行するか
+### 削除処理をどこで実行するか（[#3](https://github.com/kaorinstar/driveshot/issues/3)）
 
 保存期間の仕組みがあるからこそ、公開状態の共有URLを許容できます。つまり、どれだけ確実に実行
 できるかが論点です。

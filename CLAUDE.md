@@ -193,26 +193,33 @@ no caller has to remember to check.
 
 In the order planned, and subject to the two open decisions in `docs/architecture.md`:
 
-1. Tray icon and a global hotkey.
-2. Region capture, saved locally, with no upload.
-3. One cloud drive end to end: OAuth, upload, share link on the clipboard.
-4. The record index on disk, and deletion when a retention runs out.
-5. The remaining two cloud drives.
-6. Settings that persist.
+1. Tray icon and a global hotkey (#4).
+2. Region capture, saved locally, with no upload (#5).
+3. One cloud drive end to end: OAuth, upload, share link on the clipboard (#6).
+4. The record index on disk, and deletion when a retention runs out (#7).
+5. The remaining two cloud drives (#8).
+6. Settings that persist (#9).
 
 **Two decisions are open and are not an assistant's to settle by implementing them**: how many
-cloud drives to support first, and whether deletion has to run when the user's machine is off.
-Both are written out in `docs/architecture.md` with what each choice costs. If a task requires
-one of them, say so and ask.
+cloud drives to support first (#2), and whether deletion has to run when the user's machine is
+off (#3). Both are written out in `docs/architecture.md` with what each choice costs, and each
+issue says what decides it. If a task requires one of them, say so and ask.
+
+Every issue is open at the time of writing, and each names what it depends on. Read the issue
+before starting the work: it carries the constraints that are not in the code, such as why the
+OAuth client secret cannot be kept secret (#6) and why a failed deletion must leave its record in
+place (#7).
 
 ## Known limitations
 
 - Nothing is code-signed, on either platform. SmartScreen warns on Windows; macOS refuses to open
-  the application until it is allowed through System Settings.
-- Retention only runs while Driveshot does. This is one of the open decisions above.
-- macOS screen capture will need the "Screen Recording" permission. There is no way around it and
-  Driveshot will not try to find one.
+  the application until it is allowed through System Settings (#12).
+- Retention only runs while Driveshot does. This is one of the open decisions above (#3).
+- macOS screen capture will need the "Screen Recording" permission (#5). There is no way around it
+  and Driveshot will not try to find one.
 - The icon is drawn by `tools/make-icon.py` rather than by a designer.
+- The name has not been checked against a trademark database, only searched for on GitHub and in
+  the application stores (#11).
 
 ## Continuous integration
 
@@ -232,7 +239,7 @@ through. **Change them together.** The one deliberate difference is the version:
 writes the tag into `src-tauri/Cargo.toml` first.
 
 CodeQL is not set up: code scanning is free on public repositories only, so that workflow arrives
-when this repository is published.
+when this repository is published (#10).
 
 ## Releasing
 

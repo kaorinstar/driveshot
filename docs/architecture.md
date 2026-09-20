@@ -63,6 +63,11 @@ The four things Driveshot is for are all unbuilt:
 3. **Share** it by setting the file to "anyone with the link can view" and taking the URL.
 4. **Delete** it once the retention has run out.
 
+Each has an issue: capture is [#5](https://github.com/kaorinstar/driveshot/issues/5), the first
+cloud drive end to end is [#6](https://github.com/kaorinstar/driveshot/issues/6), the record index
+and deletion are [#7](https://github.com/kaorinstar/driveshot/issues/7), and the tray and hotkey
+that come before all of them are [#4](https://github.com/kaorinstar/driveshot/issues/4).
+
 The window today lists the three providers and shows when a shot uploaded now would be deleted.
 Both answers come from the core crate, through two Tauri commands in `src-tauri/src/main.rs`. That
 is a skeleton on purpose: it makes the whole path - window, application, core, tests, CI,
@@ -73,7 +78,7 @@ installer - real and provable before any of the hard parts are written on top of
 Neither has to be made to keep building, and both change what is built, so they are written down
 rather than settled by accident.
 
-### How many providers to support first
+### How many providers to support first ([#2](https://github.com/kaorinstar/driveshot/issues/2))
 
 Google Drive, OneDrive and Dropbox all differ in how they authenticate, how they upload, and how
 they publish a link. `Provider` names all three from the start, because the identifier of a
@@ -83,7 +88,7 @@ later. Which of them is implemented first, and whether the other two follow imme
 Doing one first is the cheaper path and gives a working application sooner. Doing all three at
 once forces the abstraction to be right rather than shaped around whichever provider came first.
 
-### Where deletion runs
+### Where deletion runs ([#3](https://github.com/kaorinstar/driveshot/issues/3))
 
 Retention is the feature that makes a public share link acceptable, so the question is how
 reliably it can run.

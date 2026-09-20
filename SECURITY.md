@@ -49,7 +49,8 @@ Every item here is a thing to look at in a security review, and none of it is im
 - **Upload to a cloud drive the user owns**, over OAuth, to Google Drive, OneDrive or Dropbox.
   The application will hold an access token and a refresh token for whichever drive is connected.
   Where those tokens are stored, and what they are protected with, is a decision still to be made
-  and will be described here before the release that makes it.
+  ([#6](https://github.com/kaorinstar/driveshot/issues/6)) and will be described here before the
+  release that makes it.
 - **Publish a share link**, which means setting the uploaded file to "anyone with the link can
   view" at the provider. A link like that is a secret in the weak sense: anyone who has it can see
   the image. That is the point of the feature, and it is also its main risk, which is why the
@@ -67,7 +68,8 @@ These are documented. A report of one tells us nothing that is not already writt
 - **Nothing is code-signed.** The Windows installer is not signed, so SmartScreen warns the first
   time it is run. The macOS application is neither signed nor notarized, so macOS refuses to open
   it until the user allows it through System Settings. Certificates are the fix for both and
-  neither has been bought.
+  neither has been bought
+  ([#12](https://github.com/kaorinstar/driveshot/issues/12)).
 - **A share link is public to whoever holds it.** "Anyone with the link can view" is what
   publishing one means at every provider. Driveshot's answer to that is the retention: the file
   stops existing, so the link stops working.
@@ -75,4 +77,5 @@ These are documented. A report of one tells us nothing that is not already writt
   running. A machine that stays off past a file's retention leaves that file in place until the
   next time Driveshot starts. Whether that is acceptable, or whether deletion needs to run
   somewhere that is always on, is the open question in
+  [#3](https://github.com/kaorinstar/driveshot/issues/3) and
   [docs/architecture.md](docs/architecture.md).

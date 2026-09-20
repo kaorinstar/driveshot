@@ -38,9 +38,10 @@ sets. The link is convenient for as long as it is needed, and stops existing aft
 | Share links | Not started |
 | Automatic deletion | Not started |
 
-Two design decisions are still open — how many cloud drives to support first, and whether
-deletion has to run when the user's machine is off. Both are written out in
-[docs/architecture.md](docs/architecture.md), including what each choice costs.
+Two design decisions are still open: how many cloud drives to support first
+([#2](https://github.com/kaorinstar/driveshot/issues/2)), and whether deletion has to run when the
+user's machine is off ([#3](https://github.com/kaorinstar/driveshot/issues/3)). Both are written
+out in [docs/architecture.md](docs/architecture.md), including what each choice costs.
 
 ## Requirements
 
@@ -133,7 +134,8 @@ against `deny.toml`, which lists every licence allowed and says why. Run the sam
 with `cargo install cargo-deny && cargo deny check`.
 
 **CodeQL is not set up yet.** Code scanning is free on public repositories only, so that workflow
-arrives when this repository is published.
+arrives when this repository is published
+([#10](https://github.com/kaorinstar/driveshot/issues/10)).
 
 ## Releasing
 
@@ -162,7 +164,8 @@ as `v0.1.0` on `main`, leave the title and description empty, and publish. The t
 - **Nothing is code-signed.** The Windows installer is unsigned, so SmartScreen warns the first
   time it runs. The macOS application is neither signed nor notarized, so macOS refuses to open it
   until it is allowed through System Settings → Privacy & Security. Both are fixed by buying a
-  certificate, which has not been done.
+  certificate, which has not been done
+  ([#12](https://github.com/kaorinstar/driveshot/issues/12)).
 - **Retention only runs while Driveshot does.** A machine that is off past a file's retention
   leaves that file in place until the next start. See
   [docs/architecture.md](docs/architecture.md).
@@ -173,12 +176,12 @@ as `v0.1.0` on `main`, leave the title and description empty, and publish. The t
 
 In the order it is planned, and subject to the two open decisions above.
 
-1. Tray icon and a global hotkey.
-2. Region capture, saved locally, with no upload.
-3. One cloud drive end to end: OAuth sign-in, upload, share link on the clipboard.
-4. The record index on disk, and deletion when a retention runs out.
-5. The remaining two cloud drives.
-6. Settings that persist: retention, hotkey, which drive.
+1. Tray icon and a global hotkey ([#4](https://github.com/kaorinstar/driveshot/issues/4)).
+2. Region capture, saved locally, with no upload ([#5](https://github.com/kaorinstar/driveshot/issues/5)).
+3. One cloud drive end to end: OAuth sign-in, upload, share link on the clipboard ([#6](https://github.com/kaorinstar/driveshot/issues/6)).
+4. The record index on disk, and deletion when a retention runs out ([#7](https://github.com/kaorinstar/driveshot/issues/7)).
+5. The remaining two cloud drives ([#8](https://github.com/kaorinstar/driveshot/issues/8)).
+6. Settings that persist: retention, hotkey, which drive ([#9](https://github.com/kaorinstar/driveshot/issues/9)).
 
 ## Contributing
 

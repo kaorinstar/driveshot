@@ -43,7 +43,8 @@ https://github.com/kaorinstar/driveshot/releases
   回避方法はなく、Driveshotも回避を試みません。Windowsでは許可は不要です。
 - **ユーザー自身のクラウドドライブへアップロードする。** OAuth認証を使い、Googleドライブ、OneDrive、
   Dropboxのいずれかへ保存します。接続したドライブのアクセストークンと更新トークンをアプリが保持します。
-  トークンの保存場所と保護方法は未決定です。実装するリリースの前に、この文書へ記載します。
+  トークンの保存場所と保護方法は未決定です（[#6](https://github.com/kaorinstar/driveshot/issues/6)）。実装するリリースの前に、
+  この文書へ記載します。
 - **共有URLを発行する。** アップロードしたファイルを「リンクを知っている人は閲覧可」に設定します。
   この種のリンクは、URLを知る人なら誰でも画像を見られます。これは機能の目的であると同時に、
   最大のリスクでもあります。次の自動削除は、そのための対策です。
@@ -58,11 +59,13 @@ https://github.com/kaorinstar/driveshot/releases
 
 - **コード署名をしていません。** Windowsのインストーラーは署名していないため、初回実行時に
   SmartScreenの警告が出ます。macOS版は署名も公証もしていないため、システム設定で許可するまで
-  起動できません。どちらも証明書の取得が解決策ですが、未取得です。
+  起動できません。どちらも証明書の取得が解決策ですが、未取得です
+  （[#12](https://github.com/kaorinstar/driveshot/issues/12)）。
 - **共有URLは、URLを知る人なら誰でも閲覧できます。** 「リンクを知っている人は閲覧可」とは、
   どの提供元でもその意味です。Driveshotの対策は保存期間です。ファイル自体がなくなるため、
   URLも機能しなくなります。
 - **保存期間の処理は、Driveshotの動作中のみ実行されます。** 期限切れファイルの削除は、アプリが
   動いているときに行います。パソコンの電源を切ったまま期限を過ぎた場合、そのファイルは次に
   Driveshotを起動するまで残ります。これを許容するか、常時稼働する場所で削除を実行する必要があるかは、
-  [docs/architecture.md](docs/architecture.md) に記載した未決定事項です。
+  [#3](https://github.com/kaorinstar/driveshot/issues/3) と
+  [docs/architecture.ja.md](docs/architecture.ja.md) に記載した未決定事項です。
