@@ -1,0 +1,21 @@
+{
+  "name": "driveshot",
+  "private": true,
+  "type": "module",
+  "description": "The settings window of Driveshot. The application itself is the Rust crate in src-tauri.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.5",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0"
+  }
+}
