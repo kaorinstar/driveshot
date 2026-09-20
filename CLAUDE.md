@@ -280,10 +280,14 @@ The repository was set up in a Claude Code session running on Linux. Everything 
 and tested there, the application crate included. `build.yml` then built and tested it on Windows
 and macOS as well, and passed on its first run (#1).
 
-What none of that covers is the application actually running. A build proves the code compiles
-and the tests prove the core crate's arithmetic; the window has never been opened on any
-platform, and no installer has been produced. The first manual `release.yml` run is where that
-changes, and it is the first thing worth doing.
+`release.yml` has since produced both installers, and **the Windows one has been installed and
+run by hand**: the installer completes, the window opens, and it shows the three drives and the
+retention selector. So the path from source to a running application is proven end to end on
+Windows.
+
+**macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
+is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as
+unverified until someone does, and say so rather than implying otherwise.
 
 ## Choosing a model for subagents
 

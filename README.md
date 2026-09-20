@@ -31,6 +31,8 @@ sets. The link is convenient for as long as it is needed, and stops existing aft
 | Part | State |
 |---|---|
 | Repository, build, tests, CI, packaging | Working |
+| Installing and starting it (Windows) | Verified by hand |
+| Installing and starting it (macOS) | Built, not yet run by anyone |
 | Retention and upload-record logic (`driveshot-core`) | Written and tested |
 | Settings window | A skeleton: it lists the drives and shows when a shot would expire |
 | Screen capture | Not started |
