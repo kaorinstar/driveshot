@@ -225,7 +225,7 @@ exist on that platform and the build fails there while compiling everywhere else
 image from its releases page, so nothing planned is lost, but do not turn the flag off to "avoid
 private API" without replacing the overlay: the alternative is showing a captured image in an
 opaque window instead of dimming a transparent one, which is a different design, not a smaller
-one.
+one. #18 has that design written out, with what it would cost.
 
 ### `NonZeroU32` in `Retention::Days`
 

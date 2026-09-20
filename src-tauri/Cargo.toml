@@ -39,7 +39,8 @@ serde_json.workspace = true
 # cannot be sold through the App Store. Driveshot is distributed as a disk image from its own
 # releases page, so nothing it plans to do is lost. Reversing this decision means finding another
 # way to draw the overlay - showing a captured image in an opaque window rather than dimming a
-# transparent one - not simply removing the flag.
+# transparent one - not simply removing the flag. #18 has that design written out, with what it
+# would cost, for whenever the App Store becomes a reason.
 tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-opener = "2"
