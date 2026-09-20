@@ -35,7 +35,7 @@ sets. The link is convenient for as long as it is needed, and stops existing aft
 | Installing and starting it (macOS) | Built, not yet run by anyone |
 | Retention and upload-record logic (`driveshot-core`) | Written and tested |
 | Settings window | A skeleton: it lists the drives and shows when a shot would expire |
-| Tray icon and global hotkey | Built; run on Linux, not yet on Windows or macOS |
+| Tray icon and global hotkey | Verified by hand on Windows |
 | Screen capture | Not started |
 | Cloud upload and OAuth | Not started |
 | Share links | Not started |

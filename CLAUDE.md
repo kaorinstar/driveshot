@@ -296,9 +296,11 @@ and tested there, the application crate included. `build.yml` then built and tes
 and macOS as well, and passed on its first run (#1).
 
 `release.yml` has since produced both installers, and **the Windows one has been installed and
-run by hand**: the installer completes, the window opens, and it shows the three drives and the
-retention selector. So the path from source to a running application is proven end to end on
-Windows.
+run by hand**, twice. The first time proved the path from source to a running application: the
+installer completes, the window opens, and it shows the three drives and the retention selector.
+The second checked the tray and the hotkey from #4 — the icon and its three entries, a left click
+opening the window, the window hiding rather than closing, Ctrl+Shift+D working while another
+application had focus, and Quit leaving nothing running. All of it behaved.
 
 **macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
 is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as
