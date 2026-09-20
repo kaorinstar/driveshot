@@ -23,10 +23,12 @@ do yet, in a README, a commit message or a reply.
 - A file whose name ends `.ja.md` is the Japanese translation of the file beside it:
   `README.ja.md`, `SECURITY.ja.md`, `version.ja.md` and `docs/architecture.ja.md`. When you change
   the English file, update its translation in the same commit so the two stay in sync.
-- **User-facing strings are never written where they are drawn.** Each one has a name in
-  `src/strings.ts`. The interface is in English alone today; it is written this way from the start
-  because adding a second language then costs one more table, while pulling a hundred strings back
-  out of the markup later costs an afternoon and misses some.
+- **User-facing strings are never written where they are drawn.** The settings window's are in
+  `src/strings.ts`; what the window cannot reach - the tray menu, its tooltip, the sentences about
+  a hotkey that would not register - is in `src-tauri/src/strings.rs`. The interface is in English
+  alone today; it is written this way from the start because adding a second language then costs
+  one more table per side, while pulling a hundred strings back out of the markup later costs an
+  afternoon and misses some.
 
 ## Build and test
 
@@ -184,6 +186,19 @@ Do not widen that back to `all` without a way to act on the result.
 a test run prove nothing about them, which is why the job builds `--release` as well without
 packaging anything.
 
+### Starting the application puts nothing on the screen
+
+`tauri.conf.json` gives the window `"visible": false`, and `src-tauri/src/main.rs` prevents its
+close and hides it instead. Driveshot is the tray icon; the window is one way of looking at it.
+Quitting is the tray menu's last entry, and nothing else exits the application.
+
+### Both the `Info.plist` and the activation policy ask macOS for the same thing
+
+`src-tauri/Info.plist` sets `LSUIElement` so the bundle has no Dock icon, and `main.rs` asks for
+`ActivationPolicy::Accessory` at runtime. The plist covers the packaged application; the runtime
+call covers `tauri dev`, which never reads it. Neither has been tested — nobody has run the macOS
+build.
+
 ### `NonZeroU32` in `Retention::Days`
 
 Zero days is not a retention period; it is an instruction to delete what was just uploaded. The
@@ -194,7 +209,7 @@ no caller has to remember to check.
 
 In the order planned, and subject to the two open decisions in `docs/architecture.md`:
 
-1. Tray icon and a global hotkey (#4).
+1. ~~Tray icon and a global hotkey (#4)~~ — done.
 2. Region capture, saved locally, with no upload (#5).
 3. One cloud drive end to end: OAuth, upload, share link on the clipboard (#6).
 4. The record index on disk, and deletion when a retention runs out (#7).

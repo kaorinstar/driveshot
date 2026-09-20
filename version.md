@@ -14,7 +14,15 @@ in [README.md](README.md).
 ## Unreleased
 
 - Nothing has been released yet. The first release will be `v0.1.0`.
-- What exists so far is the skeleton: the window opens, lists the three cloud drives Driveshot is
-  planned to support, and shows when a shot uploaded now would fall due for deletion. Capturing,
-  uploading, sharing and deleting are not built yet. The roadmap in [README.md](README.md) says in
-  which order they arrive.
+- Driveshot now sits in the tray rather than opening a window. Starting it puts nothing on the
+  screen: its icon appears beside the clock, and the menu on that icon holds **Capture**,
+  **Settings** and **Quit Driveshot**. Closing the settings window hides it again; the application
+  keeps running until you quit it from that menu.
+- **Ctrl+Shift+D**, or **Cmd+Shift+D** on a Mac, is the capture key. It works wherever you are,
+  without bringing the window up first. The combination cannot be changed yet.
+- If another application already holds that combination, Driveshot says so instead of leaving you
+  with a key that quietly does nothing: it opens the settings window at startup and names what
+  refused it.
+- **Capture itself is not built yet.** Pressing the key, or choosing Capture from the menu, only
+  brings the settings window up and notes the time. Uploading, sharing and deleting are not built
+  either. The roadmap in [README.md](README.md) says in which order they arrive.

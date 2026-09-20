@@ -5,17 +5,53 @@
 
 //! The Driveshot application.
 //!
-//! What is here today is the skeleton: the window opens, and it asks the Rust side for the two
-//! things `driveshot-core` already decides - which cloud drives exist, and when a file uploaded
-//! now would fall due for deletion. Capture, upload, sharing and deletion are not implemented
-//! yet; the roadmap in README.md says in which order they arrive.
+//! It lives in the tray and waits for a key. Starting it puts nothing on the screen; the settings
+//! window is opened from the tray menu, and closing that window hides it again rather than
+//! exiting, because exiting is what the tray menu's last entry is for.
+//!
+//! What the hotkey does today is show that it fired. Capture itself is #5, the upload is #6, and
+//! deletion is #7. Building it in this order means the tray, the hotkey and the window are known
+//! to work before anything is written on top of them.
 //!
 //! The rule that shapes this file: a calculation belongs in `driveshot-core`, where it is tested
 //! on every platform. What stays here is what genuinely needs a screen, a file or a network.
 
-use chrono::{SecondsFormat, Utc};
+mod strings;
+
+use chrono::{DateTime, SecondsFormat, Utc};
 use driveshot_core::{Provider, Retention};
 use serde::Serialize;
+use std::str::FromStr;
+use std::sync::Mutex;
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::tray::TrayIconBuilder;
+use tauri::{AppHandle, Emitter, Manager, WindowEvent};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+
+/// The key combination Driveshot takes a shot with.
+///
+/// Fixed for now; making it editable is #9. Ctrl or Cmd with Shift and D, because the obvious
+/// alternatives are taken: Windows itself holds Win+Shift+S for its own snipping tool, and macOS
+/// holds Cmd+Shift+3, 4 and 5 for screenshots. This one is not free either - a browser in front
+/// will not see Ctrl+Shift+D while Driveshot is running - which is precisely why a hotkey that
+/// fails to register is reported rather than passed over in silence.
+const DEFAULT_HOTKEY: &str = "CmdOrCtrl+Shift+D";
+
+/// The label of the settings window, as `tauri.conf.json` names it.
+const MAIN_WINDOW: &str = "main";
+
+/// Whether the hotkey is Driveshot's, and when it last fired.
+///
+/// Held as state rather than worked out on demand because registering happens once, at startup,
+/// and the answer has to survive until somebody opens the window to read it.
+struct Hotkey {
+    /// The combination that was asked for, whether or not it was granted.
+    shortcut: String,
+    /// Why it could not be registered, or `None` if it was.
+    error: Option<String>,
+    /// When it last fired. `None` until it has.
+    last_fired: Mutex<Option<DateTime<Utc>>>,
+}
 
 /// One cloud drive as the settings window lists it.
 #[derive(Serialize)]
@@ -71,10 +107,219 @@ fn expiry_preview(days: Option<u32>) -> Result<ExpiryPreview, String> {
     })
 }
 
+/// The state of the hotkey, as the settings window shows it.
+#[derive(Serialize)]
+struct HotkeyStatus {
+    /// The combination that was asked for.
+    shortcut: String,
+    /// Whether Driveshot holds it.
+    registered: bool,
+    /// Why it does not, in a sentence, or `null` if it does.
+    error: Option<String>,
+    /// When it last fired, as RFC 3339 in UTC, or `null` if it has not.
+    last_fired: Option<String>,
+}
+
+/// Whether the hotkey is Driveshot's, and when it last fired.
+#[tauri::command]
+fn hotkey_status(hotkey: tauri::State<'_, Hotkey>) -> HotkeyStatus {
+    let last_fired = hotkey
+        .last_fired
+        .lock()
+        .ok()
+        .and_then(|fired| *fired)
+        .map(|at| at.to_rfc3339_opts(SecondsFormat::Secs, true));
+
+    HotkeyStatus {
+        shortcut: hotkey.shortcut.clone(),
+        registered: hotkey.error.is_none(),
+        error: hotkey.error.clone(),
+        last_fired,
+    }
+}
+
+/// Brings the settings window up, creating nothing: it exists from startup, hidden.
+///
+/// A window that will not show is not worth stopping the application over, so a failure here is
+/// reported to whatever is watching the logs and otherwise passed over.
+fn show_settings(app: &AppHandle) {
+    let Some(window) = app.get_webview_window(MAIN_WINDOW) else {
+        eprintln!("the window labelled '{MAIN_WINDOW}' is missing from tauri.conf.json");
+        return;
+    };
+
+    if let Err(error) = window.show() {
+        eprintln!("the settings window would not show: {error}");
+        return;
+    }
+    if let Err(error) = window.set_focus() {
+        eprintln!("the settings window would not take focus: {error}");
+    }
+}
+
+/// What a request to capture does today: records that it happened and brings the window up to say
+/// so. The capture itself is #5.
+fn capture_requested(app: &AppHandle) {
+    if let Some(hotkey) = app.try_state::<Hotkey>() {
+        if let Ok(mut last_fired) = hotkey.last_fired.lock() {
+            *last_fired = Some(Utc::now());
+        }
+    }
+
+    show_settings(app);
+
+    // The window reads the time from hotkey_status when it loads; this is for the case where it
+    // was already open, and nothing reloads it.
+    if let Err(error) = app.emit("capture-requested", ()) {
+        eprintln!("the window was not told about the capture request: {error}");
+    }
+}
+
+/// Registers the hotkey and reports what happened, which is the whole point: a combination
+/// another application already holds leaves Driveshot with a key that does nothing.
+fn register_hotkey(app: &AppHandle) -> Hotkey {
+    let hotkey = |error: Option<String>| Hotkey {
+        shortcut: DEFAULT_HOTKEY.to_owned(),
+        error,
+        last_fired: Mutex::new(None),
+    };
+
+    let shortcut = match Shortcut::from_str(DEFAULT_HOTKEY) {
+        Ok(shortcut) => shortcut,
+        Err(error) => {
+            return hotkey(Some(strings::hotkey_not_understood(
+                DEFAULT_HOTKEY,
+                &error.to_string(),
+            )))
+        }
+    };
+
+    match app.global_shortcut().register(shortcut) {
+        Ok(()) => hotkey(None),
+        Err(error) => hotkey(Some(strings::hotkey_taken(
+            DEFAULT_HOTKEY,
+            &error.to_string(),
+        ))),
+    }
+}
+
+/// Builds the tray icon and its menu.
+///
+/// The icon is the one `tauri.conf.json` names, so the tray and the window cannot drift apart.
+fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+    let capture = MenuItem::with_id(app, "capture", strings::TRAY_CAPTURE, true, None::<&str>)?;
+    let settings = MenuItem::with_id(app, "settings", strings::TRAY_SETTINGS, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", strings::TRAY_QUIT, true, None::<&str>)?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &capture,
+            &PredefinedMenuItem::separator(app)?,
+            &settings,
+            &quit,
+        ],
+    )?;
+
+    let mut tray = TrayIconBuilder::new()
+        .tooltip(strings::TRAY_TOOLTIP)
+        .menu(&menu)
+        // The menu belongs to the right button. A left click opens the settings window, which is
+        // what a single icon in the tray is expected to do.
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "capture" => capture_requested(app),
+            "settings" => show_settings(app),
+            "quit" => app.exit(0),
+            other => eprintln!("the tray menu sent an entry nothing handles: {other}"),
+        })
+        .on_tray_icon_event(|tray, event| {
+            use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                show_settings(tray.app_handle());
+            }
+        });
+
+    // Without an icon the tray entry is there but invisible, which reads as the application having
+    // failed to start. Better to fail loudly at startup than to leave nothing on the screen.
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    } else {
+        eprintln!("tauri.conf.json names no window icon, so the tray icon will be blank");
+    }
+
+    tray.build(app)?;
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![providers, expiry_preview])
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    // A key press is two events. Acting on the release alone means one capture per
+                    // press rather than two.
+                    if event.state() == ShortcutState::Released {
+                        capture_requested(app);
+                    }
+                })
+                .build(),
+        )
+        .invoke_handler(tauri::generate_handler![
+            providers,
+            expiry_preview,
+            hotkey_status
+        ])
+        .setup(|app| {
+            let handle = app.handle().clone();
+
+            // macOS shows an application with a window in the Dock and in the menu bar. Driveshot
+            // is a tray application, so it asks not to be treated as one. Untested: nobody has
+            // run the macOS build yet.
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
+            let hotkey = register_hotkey(&handle);
+            // One line, at startup, saying whether the key is Driveshot's. The window shows the
+            // same thing, but a log line is what someone has to hand when the application is
+            // misbehaving on a machine that is not theirs.
+            match &hotkey.error {
+                None => println!("Driveshot holds {}.", hotkey.shortcut),
+                Some(error) => eprintln!("{error}"),
+            }
+            app.manage(hotkey);
+
+            build_tray(&handle)?;
+
+            // Closing the settings window hides it. Driveshot keeps running, because the tray icon
+            // is the application and the window is one way of looking at it. Quitting is the tray
+            // menu's last entry.
+            if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+                let hidden = window.clone();
+                window.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        if let Err(error) = hidden.hide() {
+                            eprintln!("the settings window would not hide: {error}");
+                        }
+                    }
+                });
+            }
+
+            // A hotkey nobody could take is the one failure a user has to be told about at once:
+            // the application looks fine and its key does nothing. Everything else can wait until
+            // the window is opened.
+            if app.state::<Hotkey>().error.is_some() {
+                show_settings(&handle);
+            }
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
-        .expect("the Driveshot window could not be created");
+        .expect("Driveshot could not start");
 }

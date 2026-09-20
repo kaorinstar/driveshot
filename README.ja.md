@@ -34,6 +34,7 @@
 | 導入と起動（macOS） | ビルドは通るが、未実行 |
 | 保存期間とアップロード記録の処理（`driveshot-core`） | 実装・テスト済み |
 | 設定ウィンドウ | 骨組み。保存先の一覧と削除予定日時を表示する |
+| トレイ常駐とホットキー | 実装済み。Linuxで動作確認。WindowsとmacOSは未確認 |
 | 画面の取り込み | 未着手 |
 | クラウドへのアップロードとOAuth認証 | 未着手 |
 | 共有URLの発行 | 未着手 |
@@ -173,7 +174,7 @@ tools/make-icon.py       アプリのアイコンを描画する。詳細はフ�
 
 予定している順序です。前述の未決定事項2点の結論により変わる可能性があります。
 
-1. タスクトレイへの常駐と、グローバルホットキー（[#4](https://github.com/kaorinstar/driveshot/issues/4)）。
+1. ~~タスクトレイへの常駐と、グローバルホットキー~~（[#4](https://github.com/kaorinstar/driveshot/issues/4)）— 完了。
 2. 画面の一部の取り込み。ローカル保存のみで、アップロードはしない（[#5](https://github.com/kaorinstar/driveshot/issues/5)）。
 3. クラウドドライブ1つの一連の流れ。OAuth認証、アップロード、共有URLのクリップボードへのコピー（[#6](https://github.com/kaorinstar/driveshot/issues/6)）。
 4. アップロード記録の保存と、保存期間経過後の削除（[#7](https://github.com/kaorinstar/driveshot/issues/7)）。
