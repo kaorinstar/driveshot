@@ -61,7 +61,9 @@ npm install
 npm run tauri build
 ```
 
-The installer is written under `src-tauri/target/release/bundle/`.
+The installer is written under `target/release/bundle/`. That is the workspace's build
+directory, at the root — `src-tauri` is a member of the workspace, so it has no `target/` of
+its own.
 
 To run it while working on it:
 

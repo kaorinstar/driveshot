@@ -180,19 +180,33 @@ jobs:
           fi
 
       # The installers land in a folder named after the target, which differs between the two
-      # platforms, so they are collected into one place with one name before being uploaded. Only
-      # the two extensions a release carries are copied: a file that appeared in the bundle folder
-      # for some other reason cannot find its way into a release this way.
+      # platforms, so they are collected into one place with one name before being uploaded.
+      #
+      # They are under target/ at the repository root, not src-tauri/target/. src-tauri is a
+      # member of the workspace defined by the Cargo.toml at that root, and cargo gives a
+      # workspace one build directory, at its root: src-tauri/target/ is never created at all.
+      # Assuming the path a single-crate Tauri project would have is what failed the first run of
+      # this workflow (#14).
+      #
+      # Only the two extensions a release carries are copied: a file that appeared in the bundle
+      # folder for some other reason cannot find its way into a release this way.
       - name: Collect the packages
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          find src-tauri/target -type f \( -name '*.exe' -o -name '*.dmg' \) \
-            -path '*/bundle/*' -exec cp {} artifacts/ \;
+
+          if [ ! -d target ]; then
+            echo "::error::There is no target directory, so nothing was built. The step above should have failed before this one."
+            exit 1
+          fi
+
+          find target -type f -path '*/bundle/*' \( -name '*.exe' -o -name '*.dmg' \) \
+            -exec cp {} artifacts/ \;
 
           if [ -z "$(ls -A artifacts)" ]; then
-            echo "::error::The build produced no installer. The bundler's output is above."
+            echo "::error::The build produced no installer. What the bundler did write is listed below."
+            find target -type d -name bundle -print -exec ls -R {} \; || true
             exit 1
           fi
           ls -l artifacts

@@ -59,7 +59,9 @@ npm install
 npm run tauri build
 ```
 
-インストーラーは `src-tauri/target/release/bundle/` に作られます。
+インストーラーは `target/release/bundle/` に作られます。ワークスペース全体のビルド出力先は
+リポジトリのルートです。`src-tauri` はワークスペースの一部のため、その下に `target/` は
+作られません。
 
 開発中に動かす場合は次のとおりです。
 
