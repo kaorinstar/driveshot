@@ -215,6 +215,18 @@ For the same reason `capture_region` is not used, and monitors are matched to wh
 by `Monitor::from_point` with a physical point inside them — that one means the same thing
 everywhere.
 
+### `macos-private-api`, and what it costs
+
+The capture overlay is a transparent window. On macOS that needs Tauri's `macos-private-api`
+feature and `"macOSPrivateApi": true` in `tauri.conf.json`; without them `.transparent()` does not
+exist on that platform and the build fails there while compiling everywhere else (#17).
+
+**An application built with it cannot go in the App Store.** Driveshot is distributed as a disk
+image from its releases page, so nothing planned is lost, but do not turn the flag off to "avoid
+private API" without replacing the overlay: the alternative is showing a captured image in an
+opaque window instead of dimming a transparent one, which is a different design, not a smaller
+one.
+
 ### `NonZeroU32` in `Retention::Days`
 
 Zero days is not a retention period; it is an instruction to delete what was just uploaded. The
