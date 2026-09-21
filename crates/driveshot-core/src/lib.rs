@@ -7,6 +7,7 @@
 //!
 //! What this crate holds:
 //!
+//! - [`Selection`] and [`pixels_for`]: which pixels of a screenshot the user selected.
 //! - [`Provider`]: which cloud drive a file went to.
 //! - [`Retention`]: how long a file is kept, and when it falls due for deletion.
 //! - [`ShotRecord`] and [`ShotIndex`]: what was uploaded, where it went, and when.
@@ -19,11 +20,13 @@
 #![warn(clippy::all)]
 
 mod error;
+mod geometry;
 mod provider;
 mod record;
 mod retention;
 
 pub use error::{Error, Result};
+pub use geometry::{pixels_for, LogicalSize, PixelRect, PixelSize, Selection};
 pub use provider::Provider;
 pub use record::{ShotIndex, ShotRecord};
 pub use retention::Retention;

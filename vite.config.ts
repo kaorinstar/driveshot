@@ -14,6 +14,15 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    // Two pages, not one: the settings window and the overlay that covers a monitor while a shot
+    // is being taken. Without naming both here, only index.html is built and the overlay window
+    // opens on nothing.
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        overlay: "overlay.html",
+      },
+    },
     // The window runs on WebView2 on Windows and WKWebView on macOS, both of which are current
     // browsers. There is no old engine to compile down for.
     target: "es2022",

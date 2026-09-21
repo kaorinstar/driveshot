@@ -43,6 +43,7 @@ function writeStaticText(): void {
   element("subtitle").textContent = strings.subtitle;
   element("destination-heading").textContent = strings.destinationHeading;
   element("destination-note").textContent = strings.destinationNote;
+  element("last-shot-heading").textContent = strings.lastShotHeading;
   element("hotkey-heading").textContent = strings.hotkeyHeading;
   element("hotkey-note").textContent = strings.hotkeyNote;
   element("retention-heading").textContent = strings.retentionHeading;
@@ -72,6 +73,21 @@ async function drawProviders(): Promise<void> {
     }
 
     list.append(item);
+  }
+}
+
+async function showLastShot(): Promise<void> {
+  const result = element("last-shot");
+
+  try {
+    // The Rust side puts either a path or a reason in here: a capture that failed is a thing the
+    // user pressed a key for and is entitled to an answer about, and this window is where it
+    // appears, because Driveshot has no window on screen the rest of the time.
+    const last = await invoke<string | null>("last_shot");
+    result.textContent =
+      last === null ? strings.lastShotNone : strings.lastShotSaved(last);
+  } catch {
+    result.textContent = strings.lastShotUnavailable;
   }
 }
 
@@ -148,7 +164,14 @@ async function start(): Promise<void> {
     void showHotkey();
   });
 
-  await Promise.all([drawProviders(), showExpiry(), showHotkey()]);
+  // The window is hidden rather than closed, so it is the same page every time it comes back.
+  // A shot taken while it was away, or a failure that brought it back, has to be read again.
+  window.addEventListener("focus", () => {
+    void showLastShot();
+    void showHotkey();
+  });
+
+  await Promise.all([drawProviders(), showExpiry(), showHotkey(), showLastShot()]);
 }
 
 void start();

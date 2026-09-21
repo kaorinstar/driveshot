@@ -42,15 +42,19 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-On Linux, the same commands work once the WebKitGTK development packages are installed, which is
-how the application crate was verified when this repository was set up:
+On Linux, the same commands work once the system libraries are installed. The list has grown as
+features arrived — the web view first, then the tray, then screen capture — and this is all of it:
 
 ```
-sudo apt-get install libwebkit2gtk-4.1-dev libsoup-3.0-dev libgtk-3-dev librsvg2-dev patchelf
+sudo apt-get install libwebkit2gtk-4.1-dev libsoup-3.0-dev libgtk-3-dev librsvg2-dev \
+  patchelf libayatana-appindicator3-dev libpipewire-0.3-dev libgbm-dev libdrm-dev \
+  libegl1-mesa-dev libwayland-dev libclang-dev clang
 ```
 
-A `cargo build` that fails with a message about `webkit2gtk`, `glib` or `soup` means they are
-missing. Install them rather than reporting the build as broken. **What that build proves is that
+A `cargo build` that fails naming one of those libraries, or a link that cannot find `-lgbm`,
+means the list is incomplete on that machine. Install them rather than reporting the build as
+broken. Most of them exist only for Linux: the tray comes from the operating system on Windows and
+macOS, and `xcap` reaches for pipewire, gbm and wayland only in its Linux backend. **What that build proves is that
 the Rust compiles**, and no more: Linux is not a platform Driveshot is released for, the window
 is drawn by a different engine there, and `release.yml` packages nothing for it. Without those
 packages, this still runs and covers the logic that matters most:
@@ -199,6 +203,30 @@ Quitting is the tray menu's last entry, and nothing else exits the application.
 call covers `tauri dev`, which never reads it. Neither has been tested — nobody has run the macOS
 build.
 
+### Nothing asks a platform for a display's scale factor
+
+`driveshot_core::pixels_for` works out the scale from the size of the surface the user drew on and
+the size of the image that was captured. That looks like the long way round, and it is there
+because the short way is wrong: `xcap::Monitor::width` returns a **logical** width on Linux (it
+divides by the scale factor) and a **physical** one on Windows (`dmPelsWidth`). Code written
+against either is broken on the other, and both look right at 100% where the two are equal.
+
+For the same reason `capture_region` is not used, and monitors are matched to what `xcap` captures
+by `Monitor::from_point` with a physical point inside them — that one means the same thing
+everywhere.
+
+### `macos-private-api`, and what it costs
+
+The capture overlay is a transparent window. On macOS that needs Tauri's `macos-private-api`
+feature and `"macOSPrivateApi": true` in `tauri.conf.json`; without them `.transparent()` does not
+exist on that platform and the build fails there while compiling everywhere else (#17).
+
+**An application built with it cannot go in the App Store.** Driveshot is distributed as a disk
+image from its releases page, so nothing planned is lost, but do not turn the flag off to "avoid
+private API" without replacing the overlay: the alternative is showing a captured image in an
+opaque window instead of dimming a transparent one, which is a different design, not a smaller
+one. #18 has that design written out, with what it would cost.
+
 ### `NonZeroU32` in `Retention::Days`
 
 Zero days is not a retention period; it is an instruction to delete what was just uploaded. The
@@ -210,7 +238,7 @@ no caller has to remember to check.
 In the order planned, and subject to the two open decisions in `docs/architecture.md`:
 
 1. ~~Tray icon and a global hotkey (#4)~~ — done.
-2. Region capture, saved locally, with no upload (#5).
+2. ~~Region capture, saved locally, with no upload (#5)~~ — done.
 3. One cloud drive end to end: OAuth, upload, share link on the clipboard (#6).
 4. The record index on disk, and deletion when a retention runs out (#7).
 5. The remaining two cloud drives (#8).
@@ -296,9 +324,11 @@ and tested there, the application crate included. `build.yml` then built and tes
 and macOS as well, and passed on its first run (#1).
 
 `release.yml` has since produced both installers, and **the Windows one has been installed and
-run by hand**: the installer completes, the window opens, and it shows the three drives and the
-retention selector. So the path from source to a running application is proven end to end on
-Windows.
+run by hand**, twice. The first time proved the path from source to a running application: the
+installer completes, the window opens, and it shows the three drives and the retention selector.
+The second checked the tray and the hotkey from #4 — the icon and its three entries, a left click
+opening the window, the window hiding rather than closing, Ctrl+Shift+D working while another
+application had focus, and Quit leaving nothing running. All of it behaved.
 
 **macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
 is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as

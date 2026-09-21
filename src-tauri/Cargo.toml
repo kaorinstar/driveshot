@@ -29,6 +29,20 @@ serde_json.workspace = true
 # tray-icon is what puts Driveshot in the notification area. It is a feature rather than the
 # default because an application that only shows a window does not need it, and it pulls in a
 # system library on Linux.
-tauri = { version = "2", features = ["tray-icon"] }
+#
+# macos-private-api is what allows a transparent window on macOS, and the capture overlay is one:
+# it dims the screen and leaves a hole where the selection is. Without this feature the builder's
+# .transparent() does not exist on macOS at all, and the build fails there (it compiled on Linux
+# and Windows, where the method is unconditional - #17).
+#
+# The cost is real and worth stating: an application built with it uses private Apple API and
+# cannot be sold through the App Store. Driveshot is distributed as a disk image from its own
+# releases page, so nothing it plans to do is lost. Reversing this decision means finding another
+# way to draw the overlay - showing a captured image in an opaque window rather than dimming a
+# transparent one - not simply removing the flag. #18 has that design written out, with what it
+# would cost, for whenever the App Store becomes a reason.
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-opener = "2"
+xcap = "0.9.8"
+dirs = "7.0.0"

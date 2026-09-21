@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Driveshot</title>
+    <link rel="stylesheet" href="/src/overlay.css" />
+  </head>
+  <body>
+    <!-- Covers one monitor. The dimming is this page's background, not the window's: a window
+         that is transparent and a page that is not would dim nothing. -->
+    <div class="overlay" id="overlay">
+      <p class="overlay__hint" id="hint"></p>
+      <div class="overlay__selection" id="selection" hidden></div>
+    </div>
+    <script type="module" src="/src/overlay.ts"></script>
+  </body>
+</html>
