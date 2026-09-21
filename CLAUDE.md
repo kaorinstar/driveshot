@@ -292,8 +292,9 @@ is aimed at Windows first, then at macOS, and only then at both.
 
 **What this saves is money, not waiting.** Measured on
 [the run on `main` that built both](https://github.com/kaorinstar/driveshot/actions/runs/35595214662),
-the macOS job took 4m20s and the Windows job 12m16s, and they run at the same time. So a run is
-about as long either way while `APP_PLATFORMS` says `windows`; what falls away is billed minutes.
+the macOS job took 4m20s and the Windows job 12m16s, and they run at the same time. Those are
+first runs on a branch; with the Rust cache warm the Windows job took 5m05s. So a run is about as
+long either way while `APP_PLATFORMS` says `windows`; what falls away is billed minutes.
 This repository is private, and GitHub charges a macOS minute at ten times a Linux one and a
 Windows minute at twice, which put roughly 50 of that run's 80 billed minutes in the macOS job
 alone. The phase after this one is the opposite: with `macos`, a run finishes in about a third of

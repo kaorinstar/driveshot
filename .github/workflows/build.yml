@@ -24,8 +24,10 @@
 #   application (macos-latest)       4m20s
 #   application (windows-latest)    12m16s
 #
-# The two run at the same time, so dropping macOS does not make the run much shorter - Windows
-# decides how long it takes either way. What it saves is billed minutes. This repository is
+# Both of those were first runs on their branch, where the Windows job spends about four minutes
+# restoring and saving its cache; the next run on this branch, with that cache warm, finished the
+# same job in 5m05s. Either way the two run at the same time, so dropping macOS does not make the
+# run much shorter - Windows decides how long it takes. What it saves is billed minutes. This repository is
 # private, and GitHub charges a macOS minute at ten times a Linux one and a Windows minute at
 # twice, which puts roughly 50 of a run's 80 billed minutes in that one job. Dropping Windows
 # instead, once the work moves to macOS, does shorten the run: to about a third.

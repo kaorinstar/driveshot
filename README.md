@@ -130,7 +130,7 @@ Which platforms `build.yml` compiles the application on is written as `APP_PLATF
 of that file: `windows`, `macos` or `both`. It says `windows` while the work is aimed at Windows,
 and nothing is learned from a macOS build until the macOS side of the work starts. The two jobs
 run at the same time and the Windows one is the longer of them — 12m16s against 4m20s on the last
-run that built both — so this does not make a run much shorter. What it saves is the minutes this
+run that built both, and 5m05s once its cache is warm — so this does not make a run much shorter. What it saves is the minutes this
 private repository is billed for, where a macOS runner costs ten times a Linux one: about 50 of
 that run's 80 billed minutes were the macOS job. The cost is that macOS is not compiled at all in
 the meantime; starting the workflow by hand with **Platforms** set to `macos` checks it without a
