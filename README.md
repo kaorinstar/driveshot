@@ -26,6 +26,17 @@ sets. The link is convenient for as long as it is needed, and stops existing aft
 4. **Delete** it once the retention has run out — a day, a week, a month, or never, chosen by the
    user.
 
+Until the upload exists, a shot is written to a **Driveshot folder inside your pictures folder**
+and stays there:
+
+```
+C:\Users\<you>\Pictures\Driveshot\driveshot-20260921-211731.png
+```
+
+Driveshot asks Windows or macOS where your pictures go rather than assuming, so if that folder has
+been moved — into OneDrive, for instance — the shots follow it. The settings window shows the full
+path of the last one, which is the quickest way to find them.
+
 ## Status
 
 | Part | State |
@@ -36,7 +47,7 @@ sets. The link is convenient for as long as it is needed, and stops existing aft
 | Retention and upload-record logic (`driveshot-core`) | Written and tested |
 | Settings window | A skeleton: it lists the drives and shows when a shot would expire |
 | Tray icon and global hotkey | Verified by hand on Windows |
-| Region capture, saved locally | Built; needs running on Windows or macOS |
+| Region capture, saved locally | Verified by hand on Windows, at 100%, 125% and 150% scaling |
 | Cloud upload and OAuth | Not started |
 | Share links | Not started |
 | Automatic deletion | Not started |

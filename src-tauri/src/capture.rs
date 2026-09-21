@@ -23,6 +23,7 @@
 use std::path::PathBuf;
 
 use driveshot_core::{LogicalSize, PixelSize, Selection};
+use tauri::utils::config::Color;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use crate::strings;
@@ -222,6 +223,14 @@ fn open_overlay(app: &AppHandle, index: usize, monitor: MonitorGeometry) -> taur
         )
         .decorations(false)
         .transparent(true)
+        // A window appears before the page inside it has painted anything, and what shows in
+        // those few frames is the web view's own background - white. So the window is created
+        // hidden and shown by `ready` below, once the page says it has drawn itself (#20).
+        .visible(false)
+        // Insurance for a window manager that shows the window a frame early regardless. Tauri
+        // documents this as ignored on Windows 8 and newer unless the alpha channel is 0, which
+        // is exactly the value here.
+        .background_color(Color(0, 0, 0, 0))
         .always_on_top(true)
         .skip_taskbar(true)
         .resizable(false)
@@ -229,5 +238,63 @@ fn open_overlay(app: &AppHandle, index: usize, monitor: MonitorGeometry) -> taur
         .focused(true)
         .build()?;
 
+    show_anyway_if_silent(app, format!("{OVERLAY_PREFIX}{index}"));
     Ok(())
+}
+
+/// How long an overlay is given to report that it has drawn itself.
+///
+/// Long enough that it never fires in practice, short enough that a user who pressed the key is
+/// not left wondering.
+const READY_DEADLINE: std::time::Duration = std::time::Duration::from_millis(1500);
+
+/// Shows an overlay that never said it was ready.
+///
+/// The overlays start invisible and are shown by `ready`. If that message never arrives - a page
+/// that failed to load, a script that threw - the key press would otherwise do nothing visible at
+/// all, which is the worst way for this to fail: the user cannot tell Driveshot from a dead
+/// keyboard. A late overlay is a far smaller problem than an absent one.
+fn show_anyway_if_silent(app: &AppHandle, label: String) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(READY_DEADLINE);
+
+        let Some(window) = app.get_webview_window(&label) else {
+            return; // Cancelled, or already taken. Nothing to show.
+        };
+        if window.is_visible().unwrap_or(true) {
+            return; // ready() got there first, which is the ordinary case.
+        }
+
+        eprintln!("{label} did not report itself ready; showing it anyway");
+        if let Err(error) = window.show() {
+            eprintln!("an overlay would not show: {error}");
+        }
+    });
+}
+
+/// Shows an overlay that has finished drawing itself.
+///
+/// Called by each overlay page once, as soon as it has painted. Until then the window exists but
+/// is invisible, which is what keeps the white first frame off the screen (#20).
+pub fn ready(app: &AppHandle, label: &str) {
+    if !label.starts_with(OVERLAY_PREFIX) {
+        eprintln!("something that is not an overlay reported itself ready: {label}");
+        return;
+    }
+
+    let Some(window) = app.get_webview_window(label) else {
+        // The user cancelled between the page loading and this arriving. Nothing to show.
+        return;
+    };
+
+    if let Err(error) = window.show() {
+        eprintln!("an overlay would not show: {error}");
+        return;
+    }
+    // Showing a window does not always give it the keyboard, and without the keyboard Escape
+    // cannot reach the page.
+    if let Err(error) = window.set_focus() {
+        eprintln!("an overlay would not take focus: {error}");
+    }
 }

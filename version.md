@@ -33,5 +33,6 @@ in [README.md](README.md).
   the screen, which macOS asks about the first time.
 - The settings window shows where the last shot went, so you can tell it worked without going
   looking for the file.
+- Pressing the key no longer turns the screen white for an instant before it dims.
 - **Uploading, sharing and deleting are still not built.** A shot stays on your own machine. The
   roadmap in [README.md](README.md) says in which order the rest arrives.

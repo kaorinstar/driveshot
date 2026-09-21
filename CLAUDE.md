@@ -330,6 +330,11 @@ The second checked the tray and the hotkey from #4 — the icon and its three en
 opening the window, the window hiding rather than closing, Ctrl+Shift+D working while another
 application had focus, and Quit leaving nothing running. All of it behaved.
 
+The third checked capture (#5), and **the saved image matched the selection at 100%, 125% and
+150% display scaling**. That is the design in "Nothing asks a platform for a display's scale
+factor" holding up on the platform it was written against. The same run found #20: the overlay
+flashed white before it dimmed. More than one monitor has not been tried.
+
 **macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
 is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as
 unverified until someone does, and say so rather than implying otherwise.
