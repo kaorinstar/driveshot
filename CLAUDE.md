@@ -216,6 +216,24 @@ For the same reason `capture_region` is not used, and monitors are matched to wh
 by `Monitor::from_point` with a physical point inside them — that one means the same thing
 everywhere.
 
+### `shadow(false)` on the capture overlay
+
+It reads as a cosmetic setting on a window nobody looks at the edges of. It is not. Tauri's
+`shadow` defaults to `true`, and on Windows an undecorated window with a shadow keeps its resize
+frame: `tao` answers `WM_NCCALCSIZE` by pulling the page inside in by that frame's width — eight
+physical pixels at 100%, ten at 125%, twelve at 150% — and Tauri's own documentation adds "a 1px
+white border". On an overlay meant to cover one monitor exactly, that is a strip of undimmed
+screen down each side, a white line around the lot, and a selection measured against a surface
+wider than the real one (#22).
+
+### An overlay is placed after it is built, not by its builder
+
+`WebviewWindowBuilder::position` takes **points**. `Monitor::position` returns **physical pixels**.
+Passing one to the other is right only on a monitor whose origin is `(0, 0)`, and the builder's own
+conversion uses whatever scale factor the window is created under rather than the one belonging to
+the monitor it is being sent to. So the builder is given a reasonable starting point and
+`set_position`/`set_size` then place the window in physical pixels, where nothing is converted.
+
 ### `macos-private-api`, and what it costs
 
 The capture overlay is a transparent window. On macOS that needs Tauri's `macos-private-api`

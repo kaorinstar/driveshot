@@ -9,7 +9,8 @@
 //! place on a display that is not at 100%:
 //!
 //! - **Physical pixels**, which is where the monitors are and what a captured image is made of.
-//!   Tauri reports monitor positions and sizes in these.
+//!   Tauri reports monitor positions and sizes in these, but a window *builder* takes points - so
+//!   an overlay is placed by `set_position` after it is built rather than by the builder (#22).
 //! - **Points**, the overlay's own coordinates, which is what the pointer events the user
 //!   generates are in. Physical divided by the scale factor.
 //! - **Pixels within one captured image**, which is what a crop needs.
@@ -24,7 +25,7 @@ use std::path::PathBuf;
 
 use driveshot_core::{LogicalSize, PixelSize, Selection};
 use tauri::utils::config::Color;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder};
 
 use crate::strings;
 
@@ -211,17 +212,29 @@ fn overlay_labels(app: &AppHandle) -> Vec<String> {
 /// Opens one overlay, covering one monitor.
 fn open_overlay(app: &AppHandle, index: usize, monitor: MonitorGeometry) -> tauri::Result<()> {
     let url = WebviewUrl::App(format!("{OVERLAY_PAGE}?monitor={index}").into());
+    let label = format!("{OVERLAY_PREFIX}{index}");
 
-    WebviewWindowBuilder::new(app, format!("{OVERLAY_PREFIX}{index}"), url)
+    let window = WebviewWindowBuilder::new(app, label.clone(), url)
         .title("Driveshot")
-        // Positioned and sized in physical pixels, because that is where the monitors are. Giving
-        // it points would put it in the wrong place on any display that is not at 100%.
-        .position(f64::from(monitor.x), f64::from(monitor.y))
+        // The builder takes points, not physical pixels, and turns them into pixels with whichever
+        // scale factor the window is created under - which is not necessarily the scale factor of
+        // the monitor it is being sent to. So this is only where the window is born; the physical
+        // rectangle it is meant to cover is set below, where nothing is converted (#22).
+        .position(
+            f64::from(monitor.x) / monitor.scale,
+            f64::from(monitor.y) / monitor.scale,
+        )
         .inner_size(
             f64::from(monitor.width) / monitor.scale,
             f64::from(monitor.height) / monitor.scale,
         )
         .decorations(false)
+        // Windows gives an undecorated window its shadow by leaving the resize frame around it,
+        // and then pulls the page inside in by that frame's width - eight pixels at 100%, ten at
+        // 125% - and draws a one-pixel white border round the result. On an overlay meant to cover
+        // a monitor exactly, that is an undimmed strip down each side and a white line around the
+        // lot, and every selection read against a surface wider than the real one (#22).
+        .shadow(false)
         .transparent(true)
         // A window appears before the page inside it has painted anything, and what shows in
         // those few frames is the web view's own background - white. So the window is created
@@ -238,7 +251,12 @@ fn open_overlay(app: &AppHandle, index: usize, monitor: MonitorGeometry) -> taur
         .focused(true)
         .build()?;
 
-    show_anyway_if_silent(app, format!("{OVERLAY_PREFIX}{index}"));
+    // Physical pixels: the one coordinate system that means the same thing on every platform and
+    // at every scaling. The window is still invisible here, so moving it shows nothing.
+    window.set_position(PhysicalPosition::new(monitor.x, monitor.y))?;
+    window.set_size(PhysicalSize::new(monitor.width, monitor.height))?;
+
+    show_anyway_if_silent(app, label);
     Ok(())
 }
 
