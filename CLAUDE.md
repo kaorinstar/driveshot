@@ -216,6 +216,24 @@ For the same reason `capture_region` is not used, and monitors are matched to wh
 by `Monitor::from_point` with a physical point inside them — that one means the same thing
 everywhere.
 
+### `shadow(false)` on the capture overlay
+
+It reads as a cosmetic setting on a window nobody looks at the edges of. It is not. Tauri's
+`shadow` defaults to `true`, and on Windows an undecorated window with a shadow keeps its resize
+frame: `tao` answers `WM_NCCALCSIZE` by pulling the page inside in by that frame's width — eight
+physical pixels at 100%, ten at 125%, twelve at 150% — and Tauri's own documentation adds "a 1px
+white border". On an overlay meant to cover one monitor exactly, that is a strip of undimmed
+screen down each side, a white line around the lot, and a selection measured against a surface
+wider than the real one (#22).
+
+### An overlay is placed after it is built, not by its builder
+
+`WebviewWindowBuilder::position` takes **points**. `Monitor::position` returns **physical pixels**.
+Passing one to the other is right only on a monitor whose origin is `(0, 0)`, and the builder's own
+conversion uses whatever scale factor the window is created under rather than the one belonging to
+the monitor it is being sent to. So the builder is given a reasonable starting point and
+`set_position`/`set_size` then place the window in physical pixels, where nothing is converted.
+
 ### `macos-private-api`, and what it costs
 
 The capture overlay is a transparent window. On macOS that needs Tauri's `macos-private-api`
@@ -361,6 +379,21 @@ installer completes, the window opens, and it shows the three drives and the ret
 The second checked the tray and the hotkey from #4 — the icon and its three entries, a left click
 opening the window, the window hiding rather than closing, Ctrl+Shift+D working while another
 application had focus, and Quit leaving nothing running. All of it behaved.
+
+The third checked capture (#5), and **the saved image matched the selection at 100%, 125% and
+150% display scaling**. That is the design in "Nothing asks a platform for a display's scale
+factor" holding up on the platform it was written against. The same run found two faults in how
+the overlay appears: #20, where it flashed white before it dimmed, and #22, where it sat about ten
+pixels right of the monitor's left edge.
+
+The fourth checked both fixes, and **both hold: no white frame, and the dimming reaches the edges
+of the screen**. That run also tried **more than one monitor for the first time, and capture
+worked there** — so the physical placement in `open_overlay` and the matching by
+`Monitor::from_point` are right on the desktop they were written for, rather than only on paper.
+
+What it found instead is that **the overlay now takes about a second to appear** (#23). The white
+frame was that same second, spent with a window on the screen rather than without one; waiting for
+the page removed the flash and left the wait visible.
 
 **macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
 is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as

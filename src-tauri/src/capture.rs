@@ -9,7 +9,8 @@
 //! place on a display that is not at 100%:
 //!
 //! - **Physical pixels**, which is where the monitors are and what a captured image is made of.
-//!   Tauri reports monitor positions and sizes in these.
+//!   Tauri reports monitor positions and sizes in these, but a window *builder* takes points - so
+//!   an overlay is placed by `set_position` after it is built rather than by the builder (#22).
 //! - **Points**, the overlay's own coordinates, which is what the pointer events the user
 //!   generates are in. Physical divided by the scale factor.
 //! - **Pixels within one captured image**, which is what a crop needs.
@@ -23,7 +24,8 @@
 use std::path::PathBuf;
 
 use driveshot_core::{LogicalSize, PixelSize, Selection};
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::utils::config::Color;
+use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder};
 
 use crate::strings;
 
@@ -210,18 +212,38 @@ fn overlay_labels(app: &AppHandle) -> Vec<String> {
 /// Opens one overlay, covering one monitor.
 fn open_overlay(app: &AppHandle, index: usize, monitor: MonitorGeometry) -> tauri::Result<()> {
     let url = WebviewUrl::App(format!("{OVERLAY_PAGE}?monitor={index}").into());
+    let label = format!("{OVERLAY_PREFIX}{index}");
 
-    WebviewWindowBuilder::new(app, format!("{OVERLAY_PREFIX}{index}"), url)
+    let window = WebviewWindowBuilder::new(app, label.clone(), url)
         .title("Driveshot")
-        // Positioned and sized in physical pixels, because that is where the monitors are. Giving
-        // it points would put it in the wrong place on any display that is not at 100%.
-        .position(f64::from(monitor.x), f64::from(monitor.y))
+        // The builder takes points, not physical pixels, and turns them into pixels with whichever
+        // scale factor the window is created under - which is not necessarily the scale factor of
+        // the monitor it is being sent to. So this is only where the window is born; the physical
+        // rectangle it is meant to cover is set below, where nothing is converted (#22).
+        .position(
+            f64::from(monitor.x) / monitor.scale,
+            f64::from(monitor.y) / monitor.scale,
+        )
         .inner_size(
             f64::from(monitor.width) / monitor.scale,
             f64::from(monitor.height) / monitor.scale,
         )
         .decorations(false)
+        // Windows gives an undecorated window its shadow by leaving the resize frame around it,
+        // and then pulls the page inside in by that frame's width - eight pixels at 100%, ten at
+        // 125% - and draws a one-pixel white border round the result. On an overlay meant to cover
+        // a monitor exactly, that is an undimmed strip down each side and a white line around the
+        // lot, and every selection read against a surface wider than the real one (#22).
+        .shadow(false)
         .transparent(true)
+        // A window appears before the page inside it has painted anything, and what shows in
+        // those few frames is the web view's own background - white. So the window is created
+        // hidden and shown by `ready` below, once the page says it has drawn itself (#20).
+        .visible(false)
+        // Insurance for a window manager that shows the window a frame early regardless. Tauri
+        // documents this as ignored on Windows 8 and newer unless the alpha channel is 0, which
+        // is exactly the value here.
+        .background_color(Color(0, 0, 0, 0))
         .always_on_top(true)
         .skip_taskbar(true)
         .resizable(false)
@@ -229,5 +251,68 @@ fn open_overlay(app: &AppHandle, index: usize, monitor: MonitorGeometry) -> taur
         .focused(true)
         .build()?;
 
+    // Physical pixels: the one coordinate system that means the same thing on every platform and
+    // at every scaling. The window is still invisible here, so moving it shows nothing.
+    window.set_position(PhysicalPosition::new(monitor.x, monitor.y))?;
+    window.set_size(PhysicalSize::new(monitor.width, monitor.height))?;
+
+    show_anyway_if_silent(app, label);
     Ok(())
+}
+
+/// How long an overlay is given to report that it has drawn itself.
+///
+/// Long enough that it never fires in practice, short enough that a user who pressed the key is
+/// not left wondering.
+const READY_DEADLINE: std::time::Duration = std::time::Duration::from_millis(1500);
+
+/// Shows an overlay that never said it was ready.
+///
+/// The overlays start invisible and are shown by `ready`. If that message never arrives - a page
+/// that failed to load, a script that threw - the key press would otherwise do nothing visible at
+/// all, which is the worst way for this to fail: the user cannot tell Driveshot from a dead
+/// keyboard. A late overlay is a far smaller problem than an absent one.
+fn show_anyway_if_silent(app: &AppHandle, label: String) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(READY_DEADLINE);
+
+        let Some(window) = app.get_webview_window(&label) else {
+            return; // Cancelled, or already taken. Nothing to show.
+        };
+        if window.is_visible().unwrap_or(true) {
+            return; // ready() got there first, which is the ordinary case.
+        }
+
+        eprintln!("{label} did not report itself ready; showing it anyway");
+        if let Err(error) = window.show() {
+            eprintln!("an overlay would not show: {error}");
+        }
+    });
+}
+
+/// Shows an overlay that has finished drawing itself.
+///
+/// Called by each overlay page once, as soon as it has painted. Until then the window exists but
+/// is invisible, which is what keeps the white first frame off the screen (#20).
+pub fn ready(app: &AppHandle, label: &str) {
+    if !label.starts_with(OVERLAY_PREFIX) {
+        eprintln!("something that is not an overlay reported itself ready: {label}");
+        return;
+    }
+
+    let Some(window) = app.get_webview_window(label) else {
+        // The user cancelled between the page loading and this arriving. Nothing to show.
+        return;
+    };
+
+    if let Err(error) = window.show() {
+        eprintln!("an overlay would not show: {error}");
+        return;
+    }
+    // Showing a window does not always give it the keyboard, and without the keyboard Escape
+    // cannot reach the page.
+    if let Err(error) = window.set_focus() {
+        eprintln!("an overlay would not take focus: {error}");
+    }
 }
