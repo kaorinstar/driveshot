@@ -36,5 +36,8 @@ in [README.md](README.md).
 - Pressing the key no longer turns the screen white for an instant before it dims.
 - The dimming now reaches the edges of the screen. It used to stop about ten pixels short
   down each side, which also shifted the saved image a little away from what was selected.
+- The screen dims as soon as you press the key. It used to take about a second, because
+  Driveshot built a window for each screen at that moment; those windows are now ready before
+  you press anything.
 - **Uploading, sharing and deleting are still not built.** A shot stays on your own machine. The
   roadmap in [README.md](README.md) says in which order the rest arrives.

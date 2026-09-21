@@ -9,9 +9,9 @@
 //! window is opened from the tray menu, and closing that window hides it again rather than
 //! exiting, because exiting is what the tray menu's last entry is for.
 //!
-//! What the hotkey does today is show that it fired. Capture itself is #5, the upload is #6, and
-//! deletion is #7. Building it in this order means the tray, the hotkey and the window are known
-//! to work before anything is written on top of them.
+//! The hotkey takes a shot and saves it. The upload is #6 and deletion is #7. Building it in this
+//! order means the tray, the hotkey and the window are known to work before anything is written on
+//! top of them.
 //!
 //! The rule that shapes this file: a calculation belongs in `driveshot-core`, where it is tested
 //! on every platform. What stays here is what genuinely needs a screen, a file or a network.
@@ -154,13 +154,14 @@ fn finish_capture(app: AppHandle, monitor: usize, selection: Selection) -> Resul
 /// Puts the overlays away without taking anything. Escape, or a click that was not a drag.
 #[tauri::command]
 fn cancel_capture(app: AppHandle) {
-    capture::close_all(&app);
+    capture::cancel(&app);
 }
 
-/// Told by an overlay that it has drawn itself and can be shown.
+/// Told by an overlay that it is ready to be shown.
 ///
-/// The overlays are created invisible so that the web view's white first frame never reaches the
-/// screen (#20). `window` identifies which one is speaking.
+/// The overlays are kept between captures and are invisible until they say this, so that neither a
+/// web view's white first frame (#20) nor the previous capture's selection (#23) reaches the
+/// screen. `window` identifies which one is speaking.
 #[tauri::command]
 fn overlay_ready(app: AppHandle, window: tauri::Window) {
     capture::ready(&app, window.label());
@@ -375,8 +376,14 @@ fn main() {
             }
             app.manage(hotkey);
             app.manage(LastShot::default());
+            app.manage(capture::Capturing::default());
 
             build_tray(&handle)?;
+
+            // The overlays are built now rather than when the key is pressed. Building a web view
+            // per monitor took about a second, and that second was the entire delay between the
+            // key and the screen dimming (#23). Nothing is shown by this: they are built hidden.
+            capture::prepare(&handle);
 
             // Closing the settings window hides it. Driveshot keeps running, because the tray icon
             // is the application and the window is one way of looking at it. Quitting is the tray
