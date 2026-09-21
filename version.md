@@ -33,5 +33,10 @@ in [README.md](README.md).
   the screen, which macOS asks about the first time.
 - The settings window shows where the last shot went, so you can tell it worked without going
   looking for the file.
+- **The icon is new.** It is a cloud with an upward arrow inside it, held in a capture frame. It
+  is also sharper: every size is now drawn at its own resolution rather than shrunk down from one
+  large image, which is what left the tray icon looking soft. Below 40 pixels — the tray, and the
+  small entries in the taskbar and the file list — the frame is dropped and the cloud is filled
+  in, because three white strokes that close together cannot be told apart at that size.
 - **Uploading, sharing and deleting are still not built.** A shot stays on your own machine. The
   roadmap in [README.md](README.md) says in which order the rest arrives.
