@@ -106,7 +106,8 @@ belongs in the pull request, not in the instruction.
 **From GitHub, when there is no toolchain on the machine**
 
 1. Open https://github.com/kaorinstar/driveshot/actions/workflows/release.yml
-2. **Run workflow** → Branch: the branch to test → **Run workflow**. There are no other inputs.
+2. **Run workflow** → Branch: the branch to test → **Platforms**: `both`, or the one platform the
+   build is for → **Run workflow**.
 3. When the run finishes, open it and download `driveshot-windows` or `driveshot-macos` from the
    Artifacts section at the bottom of the page.
 4. Unzip it. It holds the installer for that platform.
@@ -267,13 +268,14 @@ place (#7).
 
 ## Continuous integration
 
-- `.github/workflows/build.yml` — verification. Three jobs: `core` (Linux: formatting, clippy and
-  tests for `driveshot-core`, plus the settings window), `app` (Windows and macOS: the whole
-  workspace, including a release build), and `deny` (Linux: licences and advisories). It packages
-  nothing and runs with `contents: read`.
+- `.github/workflows/build.yml` — verification. Four jobs: `plan` (Linux: which platforms the
+  application is built on), `core` (Linux: formatting, clippy and tests for `driveshot-core`, plus
+  the settings window), `app` (the whole workspace on the platforms `plan` names, including a
+  release build), and `deny` (Linux: licences and advisories). It packages nothing and runs with
+  `contents: read`.
 - `.github/workflows/release.yml` — distribution. A `v*` tag publishes a release with a Windows
-  installer and a macOS disk image; a manual run produces the same two as an artifact and
-  publishes nothing. Only this workflow gets `contents: write`.
+  installer and a macOS disk image; a manual run produces the same as an artifact and publishes
+  nothing. Only this workflow gets `contents: write`.
 - `.github/workflows/report-build-status.yml` — called by both, for pushes only. Opens or
   comments on an issue labelled `ci-failure`, and comments again on the next success without
   closing it.
@@ -281,6 +283,36 @@ place (#7).
 `build.yml` and `release.yml` carry the same build steps on purpose, so each can be read straight
 through. **Change them together.** The one deliberate difference is the version: a release build
 writes the tag into `src-tauri/Cargo.toml` first.
+
+### Which platforms a run builds on
+
+`APP_PLATFORMS` at the top of `build.yml` holds one word — `windows`, `macos` or `both` — and it
+is the only place a push or a pull request takes the answer from. It is `windows` today: the work
+is aimed at Windows first, then at macOS, and only then at both.
+
+**What this saves is money, not waiting.** Measured on
+[the run on `main` that built both](https://github.com/kaorinstar/driveshot/actions/runs/35595214662),
+the macOS job took 4m20s and the Windows job 12m16s, and they run at the same time. Those are
+first runs on a branch; with the Rust cache warm the Windows job took 5m05s. So a run is about as
+long either way while `APP_PLATFORMS` says `windows`; what falls away is billed minutes.
+This repository is private, and GitHub charges a macOS minute at ten times a Linux one and a
+Windows minute at twice, which put roughly 50 of that run's 80 billed minutes in the macOS job
+alone. The phase after this one is the opposite: with `macos`, a run finishes in about a third of
+the time, because Windows is what makes a run long here.
+
+What that costs is worth saying plainly, because it is easy to forget:
+
+- **While it says `windows`, nothing checks that the code still compiles on macOS.** The first run
+  after it is widened again finds everything that broke in between, at once.
+- Run `build.yml` by hand on the other platform now and then rather than waiting for that.
+  **Run workflow** → **Platforms** → `macos` overrides `APP_PLATFORMS` for that run alone, without
+  a commit.
+- **Set it back to `both` before a release.** A tag ignores it — `release.yml` always packages both
+  platforms, because a release carrying one of them is not a release — but a release is a poor
+  place to discover that the other platform stopped compiling three weeks ago.
+
+`release.yml` takes the same three words as a **Platforms** input on a manual run, defaulting to
+`both`. A tag ignores the input entirely.
 
 CodeQL is not set up: code scanning is free on public repositories only, so that workflow arrives
 when this repository is published (#10).

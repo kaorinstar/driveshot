@@ -6,9 +6,14 @@
 #
 # A tag push publishes the release. The tag decides both the version stamped into the packages and
 # the notes, which are taken from the matching section of version.md. A manual run is a dry run: it
-# produces the same two packages as a workflow artifact, stamped with the version already in
+# produces the same packages as a workflow artifact, stamped with the version already in
 # src-tauri/Cargo.toml, and creates no release, so a change here can be tried out before a tag
 # exists.
+#
+# A tag always packages both platforms: a release that carries one of them is not a release. A
+# manual run can be narrowed to one, because while the work is aimed at a single platform the
+# package for the other is a file nobody opens, built on a runner this private repository is
+# billed for. The Platforms input is what narrows it, and it is read on a manual run alone.
 #
 # The build steps repeat those in .github/workflows/build.yml, except that this one writes the
 # version from the tag into src-tauri/Cargo.toml first. Change them in both files.
@@ -19,6 +24,15 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: The platforms to package. A tag ignores this and packages both.
+        type: choice
+        default: both
+        options:
+          - both
+          - windows
+          - macos
 
 permissions:
   contents: read
@@ -32,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      os: ${{ steps.platforms.outputs.os }}
 
     steps:
       - name: Check out the source
@@ -69,6 +84,36 @@ jobs:
 
           echo "version=$version" >>"$GITHUB_OUTPUT"
           echo "Version for this run: $version"
+
+      - name: Work out which platforms are packaged
+        id: platforms
+        shell: bash
+        env:
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          CHOICE: ${{ inputs.platforms }}
+        run: |
+          set -euo pipefail
+
+          # A release carries an installer for each platform, so the tag decides this rather than
+          # the input. The input is empty on a tag push in any case; this does not depend on that.
+          if [ "$IS_TAG" = "true" ]; then
+            choice=both
+          else
+            choice="${CHOICE:-both}"
+          fi
+
+          case "$choice" in
+            windows) os='["windows-latest"]' ;;
+            macos)   os='["macos-latest"]' ;;
+            both)    os='["windows-latest", "macos-latest"]' ;;
+            *)
+              echo "::error::The Platforms input is '$choice'. It has to be windows, macos or both."
+              exit 1
+              ;;
+          esac
+
+          echo "os=$os" >>"$GITHUB_OUTPUT"
+          echo "::notice::Packaging on $os (asked for: $choice)."
 
       # The notes come from version.md rather than from the commit log, because what changed for
       # someone using the application is not the same list as what was merged.
@@ -108,11 +153,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            artifact: driveshot-windows
-          - os: macos-latest
-            artifact: driveshot-macos
+        os: ${{ fromJSON(needs.prepare.outputs.os) }}
 
     steps:
       - name: Check out the source
@@ -211,10 +252,24 @@ jobs:
           fi
           ls -l artifacts
 
+      # The name the publish job below looks for. It is worked out from the runner rather than
+      # carried in the matrix, because the matrix is now a plain list of machines: what decides it
+      # is the prepare job, and that job cannot name a file it does not build.
+      - name: Name the artifact after the platform
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            echo "name=driveshot-macos" >>"$GITHUB_OUTPUT"
+          else
+            echo "name=driveshot-windows" >>"$GITHUB_OUTPUT"
+          fi
+
       - name: Upload the packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
         with:
-          name: ${{ matrix.artifact }}
+          name: ${{ steps.artifact.outputs.name }}
           path: artifacts/
 
   # A manual run stops after the job above: the packages are there to download, and nothing is
