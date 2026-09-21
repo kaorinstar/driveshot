@@ -15,6 +15,27 @@
 #            the application embeds is part of the operating system, so the application crate
 #            cannot be compiled anywhere else.
 #   deny     Linux. cargo-deny reads the dependency graph rather than compiling it.
+#
+# The app job does not always build on both platforms. APP_PLATFORMS below names the ones it
+# builds on. What narrowing it is worth is not what it looks like, so the measurement is written
+# down here rather than guessed at again. From the run of this workflow on main that built both,
+# https://github.com/kaorinstar/driveshot/actions/runs/35595214662:
+#
+#   application (macos-latest)       4m20s
+#   application (windows-latest)    12m16s
+#
+# Both of those were first runs on their branch, where the Windows job spends about four minutes
+# restoring and saving its cache; the next run on this branch, with that cache warm, finished the
+# same job in 5m05s. Either way the two run at the same time, so dropping macOS does not make the
+# run much shorter - Windows decides how long it takes. What it saves is billed minutes. This repository is
+# private, and GitHub charges a macOS minute at ten times a Linux one and a Windows minute at
+# twice, which puts roughly 50 of a run's 80 billed minutes in that one job. Dropping Windows
+# instead, once the work moves to macOS, does shorten the run: to about a third.
+#
+# The cost of narrowing it is plain: while it says windows, nothing here compiles on macOS, and
+# the first run after it is widened again finds whatever broke in between. Set it back to both
+# before that work is finished, and run this workflow by hand on the other platform now and then
+# in the meantime - the Platforms input overrides it for one run without a commit.
 
 name: build
 
@@ -24,9 +45,24 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: The platforms to build the application on
+        type: choice
+        default: as set in the workflow
+        options:
+          - as set in the workflow
+          - windows
+          - macos
+          - both
 
 permissions:
   contents: read
+
+# windows, macos, or both. This is the one place the answer is written for a push or a pull
+# request; the plan job below turns it into the list of machines the app job runs on.
+env:
+  APP_PLATFORMS: windows
 
 # A second push to the same branch makes the run already going pointless, so it is cancelled.
 # Never on main: a run there is the record of whether that commit was good.
@@ -35,6 +71,42 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Nothing is compiled here, so this job costs seconds. What it buys is one place to decide which
+  # platforms are built, and a line in the run that says what was decided.
+  plan:
+    name: platforms to build on
+    runs-on: ubuntu-latest
+    outputs:
+      os: ${{ steps.pick.outputs.os }}
+
+    steps:
+      - name: Work out which platforms the application is built on
+        id: pick
+        shell: bash
+        env:
+          # Empty on a push and on a pull request: those runs take APP_PLATFORMS as it is written.
+          CHOICE: ${{ inputs.platforms }}
+        run: |
+          set -euo pipefail
+
+          choice="$CHOICE"
+          if [ -z "$choice" ] || [ "$choice" = "as set in the workflow" ]; then
+            choice="$APP_PLATFORMS"
+          fi
+
+          case "$choice" in
+            windows) os='["windows-latest"]' ;;
+            macos)   os='["macos-latest"]' ;;
+            both)    os='["windows-latest", "macos-latest"]' ;;
+            *)
+              echo "::error::APP_PLATFORMS in build.yml is '$choice'. It has to be windows, macos or both."
+              exit 1
+              ;;
+          esac
+
+          echo "os=$os" >>"$GITHUB_OUTPUT"
+          echo "::notice::The application is built on $os (asked for: $choice)."
+
   core:
     name: core and settings window
     runs-on: ubuntu-latest
@@ -81,13 +153,15 @@ jobs:
 
   app:
     name: application (${{ matrix.os }})
+    needs: plan
     runs-on: ${{ matrix.os }}
     strategy:
       # One platform failing is worth knowing about on the other as well, so the second job is
-      # not cancelled when the first fails.
+      # not cancelled when the first fails. When only one platform is being built, there is one
+      # job here rather than two.
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: ${{ fromJSON(needs.plan.outputs.os) }}
 
     steps:
       - name: Check out the source
@@ -153,11 +227,11 @@ jobs:
   # all. Pushes only - a failing pull request already shows the failure on itself. The permission
   # is granted to this job alone, so the jobs above keep their read-only token.
   report:
-    needs: [core, app, deny]
+    needs: [plan, core, app, deny]
     if: always() && github.event_name == 'push'
     uses: ./.github/workflows/report-build-status.yml
     with:
-      outcome: ${{ (needs.core.result == 'success' && needs.app.result == 'success' && needs.deny.result == 'success') && 'success' || 'failure' }}
+      outcome: ${{ (needs.plan.result == 'success' && needs.core.result == 'success' && needs.app.result == 'success' && needs.deny.result == 'success') && 'success' || 'failure' }}
     permissions:
       # contents: read so the call can read the reusable workflow file beside this one.
       contents: read
