@@ -157,6 +157,15 @@ fn cancel_capture(app: AppHandle) {
     capture::close_all(&app);
 }
 
+/// Told by an overlay that it has drawn itself and can be shown.
+///
+/// The overlays are created invisible so that the web view's white first frame never reaches the
+/// screen (#20). `window` identifies which one is speaking.
+#[tauri::command]
+fn overlay_ready(app: AppHandle, window: tauri::Window) {
+    capture::ready(&app, window.label());
+}
+
 /// Where the last shot went, or `null` if none has been taken since Driveshot started.
 #[tauri::command]
 fn last_shot(last: tauri::State<'_, LastShot>) -> Option<String> {
@@ -344,6 +353,7 @@ fn main() {
             hotkey_status,
             finish_capture,
             cancel_capture,
+            overlay_ready,
             last_shot
         ])
         .setup(|app| {

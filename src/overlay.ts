@@ -124,6 +124,16 @@ function start(): void {
     event.preventDefault();
     cancel();
   });
+
+  // The window this page is in was created invisible, because a window appears before the page in
+  // it has painted and what shows in between is the web view's own white background (#20). Two
+  // nested animation frames is the usual way to wait for "has actually painted": the first is
+  // called before the coming frame is rendered, the second after it has been.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      void invoke("overlay_ready");
+    });
+  });
 }
 
 start();
