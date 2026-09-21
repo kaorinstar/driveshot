@@ -128,11 +128,14 @@ Two workflows, split so that a verification run never needs write access to the 
 
 Which platforms `build.yml` compiles the application on is written as `APP_PLATFORMS` at the top
 of that file: `windows`, `macos` or `both`. It says `windows` while the work is aimed at Windows,
-because a macOS build adds about ten minutes to every run, and nothing is learned from it until
-the macOS side of the work starts. The cost is that macOS is not compiled at all in the meantime;
-starting the workflow by hand with **Platforms** set to `macos` checks it without a commit, and
-the value goes back to `both` once both platforms are being written. A `v*` tag ignores all of
-this: a release is always packaged for both.
+and nothing is learned from a macOS build until the macOS side of the work starts. The two jobs
+run at the same time and the Windows one is the longer of them — 12m16s against 4m20s on the last
+run that built both — so this does not make a run much shorter. What it saves is the minutes this
+private repository is billed for, where a macOS runner costs ten times a Linux one: about 50 of
+that run's 80 billed minutes were the macOS job. The cost is that macOS is not compiled at all in
+the meantime; starting the workflow by hand with **Platforms** set to `macos` checks it without a
+commit, and the value goes back to `both` once both platforms are being written. A `v*` tag
+ignores all of this: a release is always packaged for both.
 
 A third file, `.github/workflows/report-build-status.yml`, is called by both once their jobs
 finish, and only for pushes. On a failure it opens an issue labelled `ci-failure`, or comments on

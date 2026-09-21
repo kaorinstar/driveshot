@@ -12,8 +12,8 @@
 #
 # A tag always packages both platforms: a release that carries one of them is not a release. A
 # manual run can be narrowed to one, because while the work is aimed at a single platform the
-# package for the other is ten minutes of waiting for a file nobody opens. The Platforms input is
-# what narrows it, and it is read on a manual run alone.
+# package for the other is a file nobody opens, built on a runner this private repository is
+# billed for. The Platforms input is what narrows it, and it is read on a manual run alone.
 #
 # The build steps repeat those in .github/workflows/build.yml, except that this one writes the
 # version from the tag into src-tauri/Cargo.toml first. Change them in both files.

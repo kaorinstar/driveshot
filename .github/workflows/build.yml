@@ -17,11 +17,23 @@
 #   deny     Linux. cargo-deny reads the dependency graph rather than compiling it.
 #
 # The app job does not always build on both platforms. APP_PLATFORMS below names the ones it
-# builds on, so that a stretch of work aimed at one platform is not spent waiting for the other to
-# compile. The cost of narrowing it is plain: while it says windows, nothing here compiles on
-# macOS, and the first run after it is widened again finds whatever broke in between. Set it back
-# to both before that work is finished, and run this workflow by hand on the other platform now
-# and then in the meantime - the Platforms input overrides it for one run without a commit.
+# builds on. What narrowing it is worth is not what it looks like, so the measurement is written
+# down here rather than guessed at again. From the run of this workflow on main that built both,
+# https://github.com/kaorinstar/driveshot/actions/runs/35595214662:
+#
+#   application (macos-latest)       4m20s
+#   application (windows-latest)    12m16s
+#
+# The two run at the same time, so dropping macOS does not make the run much shorter - Windows
+# decides how long it takes either way. What it saves is billed minutes. This repository is
+# private, and GitHub charges a macOS minute at ten times a Linux one and a Windows minute at
+# twice, which puts roughly 50 of a run's 80 billed minutes in that one job. Dropping Windows
+# instead, once the work moves to macOS, does shorten the run: to about a third.
+#
+# The cost of narrowing it is plain: while it says windows, nothing here compiles on macOS, and
+# the first run after it is widened again finds whatever broke in between. Set it back to both
+# before that work is finished, and run this workflow by hand on the other platform now and then
+# in the meantime - the Platforms input overrides it for one run without a commit.
 
 name: build
 
