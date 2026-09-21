@@ -382,8 +382,18 @@ application had focus, and Quit leaving nothing running. All of it behaved.
 
 The third checked capture (#5), and **the saved image matched the selection at 100%, 125% and
 150% display scaling**. That is the design in "Nothing asks a platform for a display's scale
-factor" holding up on the platform it was written against. The same run found #20: the overlay
-flashed white before it dimmed. More than one monitor has not been tried.
+factor" holding up on the platform it was written against. The same run found two faults in how
+the overlay appears: #20, where it flashed white before it dimmed, and #22, where it sat about ten
+pixels right of the monitor's left edge.
+
+The fourth checked both fixes, and **both hold: no white frame, and the dimming reaches the edges
+of the screen**. That run also tried **more than one monitor for the first time, and capture
+worked there** — so the physical placement in `open_overlay` and the matching by
+`Monitor::from_point` are right on the desktop they were written for, rather than only on paper.
+
+What it found instead is that **the overlay now takes about a second to appear** (#23). The white
+frame was that same second, spent with a window on the screen rather than without one; waiting for
+the page removed the flash and left the wait visible.
 
 **macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
 is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as
