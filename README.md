@@ -117,14 +117,22 @@ Two workflows, split so that a verification run never needs write access to the 
 
 - **`.github/workflows/build.yml`** runs on every push to `main` and every pull request. It
   checks the formatting, lints and tests `driveshot-core` on Linux, builds and tests the whole
-  workspace on Windows and macOS, builds the settings window, and checks every dependency for
-  known vulnerabilities and for a licence this project can ship. It packages nothing and runs
-  with `contents: read`.
+  workspace on Windows, on macOS or on both, builds the settings window, and checks every
+  dependency for known vulnerabilities and for a licence this project can ship. It packages
+  nothing and runs with `contents: read`.
 - **`.github/workflows/release.yml`** builds, tests and packages. Pushing a tag such as `v0.1.0`
   publishes a release with two files attached: a Windows installer and a macOS disk image.
-  Starting it by hand produces the same two as a build artifact and creates no release, which is
-  the only way to try a change to the packaging before a tag exists. Only this workflow gets
+  Starting it by hand produces the same as a build artifact and creates no release, which is the
+  only way to try a change to the packaging before a tag exists. Only this workflow gets
   `contents: write`.
+
+Which platforms `build.yml` compiles the application on is written as `APP_PLATFORMS` at the top
+of that file: `windows`, `macos` or `both`. It says `windows` while the work is aimed at Windows,
+because a macOS build adds about ten minutes to every run, and nothing is learned from it until
+the macOS side of the work starts. The cost is that macOS is not compiled at all in the meantime;
+starting the workflow by hand with **Platforms** set to `macos` checks it without a commit, and
+the value goes back to `both` once both platforms are being written. A `v*` tag ignores all of
+this: a release is always packaged for both.
 
 A third file, `.github/workflows/report-build-status.yml`, is called by both once their jobs
 finish, and only for pushes. On a failure it opens an issue labelled `ci-failure`, or comments on
