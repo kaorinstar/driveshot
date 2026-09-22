@@ -145,6 +145,15 @@ Full details are in `docs/architecture.md`. The rules that matter most:
    second place to write it.
 4. **Driveshot deletes only what its own record names.** A file the index does not hold is not
    Driveshot's to delete, whatever it looks like and wherever it sits.
+5. **Capture never depends on being signed in, and a failed upload leaves the image on disk.**
+   Driveshot exists because a hosted service stopped being usable, so no failure on the cloud side
+   may stop somebody taking a screenshot and saving it. This holds today only because upload does
+   not exist yet; it has to keep holding once it does.
+6. **The OAuth client Driveshot ships with is replaceable by the user's own.** It names one Google
+   Cloud project owned by one account, and losing that account would otherwise leave every user
+   unable to sign in and unable to delete what they have already published. The settings carry a
+   client identifier and secret; empty means the built-in one. This is a requirement, not a
+   convenience - `docs/architecture.md` has what it costs and the three routes it gives.
 
 ## Conventions
 
