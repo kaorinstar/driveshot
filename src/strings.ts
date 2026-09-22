@@ -9,8 +9,41 @@ export const strings = {
 
   destinationHeading: "Where shots are saved",
   destinationNote:
-    "All three drives are listed from the start. None of them works yet; the one being built first is decided in the roadmap.",
+    "All three drives are listed from the start. Google Drive is being built first and is the only one that can be signed in to; uploading is not written yet, so none of them takes a shot.",
   providerNotAvailable: "Not available yet",
+
+  signInHeading: "Google Drive",
+  signInNote:
+    "Signing in lets Driveshot add files to your Drive, and reach nothing else in it. Uploading is not built yet, so this only proves the connection.",
+  signInConnect: "Sign in to Google Drive",
+  signInWorking: "Waiting for your browser\u2026",
+  signInDisconnect: "Sign out",
+  signInNone: "Not signed in.",
+  signInHeld: (when: string) => `Signed in. The connection lasts until ${when}.`,
+  signInRenews: "It renews itself after that, without asking again.",
+  signInExpiresForGood:
+    "After that you will be asked to sign in again, because Google issued no renewal for this sign-in.",
+  signInExpired: "The connection has run out. Sign in again.",
+  signInUnavailable: "Whether Driveshot is signed in could not be read.",
+  signInUsingBuiltInClient: "Using the Google client built into Driveshot.",
+  signInUsingOwnClient: "Using the Google client you supplied.",
+  signInOnlyInMemory:
+    "This lasts until Driveshot is closed. Keeping it across restarts is not built yet.",
+
+  clientSummary: "Use a Google client of your own",
+  clientNote:
+    "Driveshot signs in through its own Google client. Putting your own here makes it depend on your Google Cloud project instead of this one, which is what to do if the built-in one ever stops working. Create it in the Google Cloud console as a Desktop app.",
+  clientIdLabel: "Client ID",
+  clientSecretLabel: "Client secret",
+  clientSecretKept: "Saved. Leave blank to keep it.",
+  clientSecretNone: "Optional",
+  clientSave: "Save",
+  clientForget: "Use the built-in client again",
+  clientNoneSaved: "No client of your own is saved, so the built-in one is used.",
+  clientSaved: (path: string) => `Saved to ${path}. Sign in again to use it.`,
+  clientForgotten: "Removed. The built-in client is used again.",
+  clientWhereItLives: (path: string) => `It is kept in ${path}.`,
+  clientFailed: "The Google client could not be saved.",
 
   overlayHint: "Drag to select an area. Esc to cancel.",
 
@@ -26,8 +59,8 @@ export const strings = {
   hotkeyNeverPressed: "It has not been pressed yet.",
   hotkeyLastPressed: (when: string) => `Last pressed at ${when}.`,
   hotkeyUnavailable: "The capture key could not be read.",
-  captureNotBuilt:
-    "Capture itself is not built yet, so pressing the key only brings this window up.",
+  captureWhatItDoes:
+    "Pressing it dims every screen. Drag a rectangle on one of them and that part is saved to your pictures folder; nothing is uploaded yet.",
 
   retentionHeading: "How long a shot is kept",
   retentionNote:

@@ -5,8 +5,9 @@
 画面の一部を取り込み、ご自身のクラウドドライブへ保存し、共有URLを発行します。設定した保存期間を
 過ぎたファイルは自動で削除します。
 
-**Driveshotは開発初期の段階で、まだリリースしていません。** 画面の取り込み、アップロード、共有、
-削除はいずれも未実装です。現在あるのは [開発の状況](#開発の状況) に記載した骨組みだけです。
+**Driveshotは開発初期の段階で、まだリリースしていません。** 画面の取り込みと端末への保存は動作し、
+Googleドライブへのサインインも動作します。アップロード、共有、削除はいずれも未実装です。
+全体は [開発の状況](#開発の状況) に記載しています。
 この文書は、これから作るものを説明し、未実装の部分を明示します。
 
 ## 目的
@@ -47,7 +48,8 @@ C:\Users\<ユーザー名>\Pictures\Driveshot\driveshot-20260921-211731.png
 | 設定ウィンドウ | 骨組み。保存先の一覧と削除予定日時を表示する |
 | トレイ常駐とホットキー | Windowsの実機で確認済み |
 | 画面の一部の取り込みとローカル保存 | Windowsの実機で確認済み（拡大率100%・125%・150%） |
-| クラウドへのアップロードとOAuth認証 | 未着手 |
+| Googleドライブへのサインイン | 実装済み。実アカウントでの実行は未確認 |
+| クラウドへのアップロード | 未着手 |
 | 共有URLの発行 | 未着手 |
 | 期限による自動削除 | 未着手 |
 
@@ -208,7 +210,7 @@ Windowsが12分16秒、macOSが4分20秒。Windowsはキャッシュが効くと
 
 1. ~~タスクトレイへの常駐と、グローバルホットキー~~（[#4](https://github.com/kaorinstar/driveshot/issues/4)）— 完了。
 2. ~~画面の一部の取り込み。ローカル保存のみで、アップロードはしない~~（[#5](https://github.com/kaorinstar/driveshot/issues/5)）— 完了。
-3. Googleドライブの一連の流れ。OAuth認証、アップロード、共有URLのクリップボードへのコピー（[#6](https://github.com/kaorinstar/driveshot/issues/6)）。
+3. Googleドライブの一連の流れ（[#6](https://github.com/kaorinstar/driveshot/issues/6)）。サインインは実装済み。アップロードと共有URLは未着手。
 4. アップロード記録の保存と、保存期間経過後の削除（[#7](https://github.com/kaorinstar/driveshot/issues/7)）。
 5. OneDriveとDropboxへの対応（[#8](https://github.com/kaorinstar/driveshot/issues/8)）。
 6. 設定の保存。保存期間、ホットキー、保存先（[#9](https://github.com/kaorinstar/driveshot/issues/9)）。

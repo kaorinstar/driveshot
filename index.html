@@ -19,6 +19,34 @@
         <ul class="providers" id="providers"></ul>
       </section>
 
+      <section class="card" aria-labelledby="sign-in-heading">
+        <h2 class="card__title" id="sign-in-heading"></h2>
+        <p class="card__note" id="sign-in-note"></p>
+        <p class="result result--first" id="sign-in" role="status"></p>
+        <div class="actions">
+          <button class="button" id="sign-in-button" type="button"></button>
+          <button class="button button--quiet" id="sign-out-button" type="button" hidden></button>
+        </div>
+
+        <details class="drawer" id="client-drawer">
+          <summary class="drawer__summary" id="client-summary"></summary>
+          <p class="card__note" id="client-note"></p>
+          <div class="field">
+            <label class="field__label" for="client-id" id="client-id-label"></label>
+            <input class="field__control" id="client-id" type="text" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="client-secret" id="client-secret-label"></label>
+            <input class="field__control" id="client-secret" type="password" autocomplete="off" />
+          </div>
+          <div class="actions">
+            <button class="button" id="client-save" type="button"></button>
+            <button class="button button--quiet" id="client-forget" type="button" hidden></button>
+          </div>
+          <p class="result" id="client-result" role="status"></p>
+        </details>
+      </section>
+
       <section class="card" aria-labelledby="hotkey-heading">
         <h2 class="card__title" id="hotkey-heading"></h2>
         <p class="card__note" id="hotkey-note"></p>

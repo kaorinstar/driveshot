@@ -19,6 +19,8 @@
 //! nobody here can test. Reshaping it when OneDrive and Dropbox arrive is part of #8.
 
 use crate::{Error, Result};
+use chrono::{DateTime, Duration, Utc};
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
 /// Google's authorization endpoint: where the user's browser is sent to sign in and consent.
@@ -220,6 +222,172 @@ pub fn authorization_code(query: &str, expected_state: &str) -> Result<String> {
 
     code.filter(|code| !code.is_empty())
         .ok_or(Error::AuthorizationIncomplete)
+}
+
+/// The form body of the request that exchanges an authorization code for tokens.
+///
+/// This is a POST to [`GOOGLE_TOKEN_ENDPOINT`] with a
+/// `application/x-www-form-urlencoded` body, made by the application itself rather than by the
+/// browser. The verifier goes here rather than in the authorization URL: it is what proves this
+/// is the same program that started the sign-in.
+#[derive(Debug, Clone, Copy)]
+pub struct TokenExchange<'a> {
+    /// The code read out of the redirect by [`authorization_code`].
+    pub code: &'a str,
+    /// The OAuth client identifier.
+    pub client_id: &'a str,
+    /// The client secret, when the provider was given one.
+    ///
+    /// Optional because a desktop application cannot keep a secret: it ships inside the installer,
+    /// where anybody can read it. Google issues one for a "Desktop app" client and accepts the
+    /// exchange whether or not it is sent, so Driveshot sends it when it has one and does not
+    /// pretend it is protecting anything. PKCE is what makes the exchange safe.
+    pub client_secret: Option<&'a str>,
+    /// The same redirect URI the authorization request carried, which the provider checks.
+    pub redirect_uri: &'a str,
+    /// The verifier from [`Pkce::verifier`].
+    pub verifier: &'a str,
+}
+
+impl TokenExchange<'_> {
+    /// Builds the form-encoded request body.
+    #[must_use]
+    pub fn form_body(&self) -> String {
+        let mut form = Form::new();
+        form.add("grant_type", "authorization_code");
+        form.add("code", self.code);
+        form.add("client_id", self.client_id);
+        if let Some(secret) = self.client_secret {
+            form.add("client_secret", secret);
+        }
+        form.add("redirect_uri", self.redirect_uri);
+        form.add("code_verifier", self.verifier);
+        form.finish()
+    }
+}
+
+/// The form body of the request that turns a refresh token into a fresh access token.
+///
+/// An access token lasts about an hour. Everything Driveshot does after the first hour - every
+/// upload, and every deletion a retention falls due for - depends on this request working, which
+/// is why the refresh token is asked for at all.
+#[derive(Debug, Clone, Copy)]
+pub struct TokenRefresh<'a> {
+    /// The refresh token kept from an earlier [`TokenResponse`].
+    pub refresh_token: &'a str,
+    /// The OAuth client identifier.
+    pub client_id: &'a str,
+    /// The client secret, when the provider was given one. See [`TokenExchange::client_secret`].
+    pub client_secret: Option<&'a str>,
+}
+
+impl TokenRefresh<'_> {
+    /// Builds the form-encoded request body.
+    #[must_use]
+    pub fn form_body(&self) -> String {
+        let mut form = Form::new();
+        form.add("grant_type", "refresh_token");
+        form.add("refresh_token", self.refresh_token);
+        form.add("client_id", self.client_id);
+        if let Some(secret) = self.client_secret {
+            form.add("client_secret", secret);
+        }
+        form.finish()
+    }
+}
+
+/// What the token endpoint answered with.
+#[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
+pub struct TokenResponse {
+    /// The token that authorises a call to the Drive API. It expires.
+    pub access_token: String,
+    /// How many seconds from the moment of the answer the access token lasts.
+    pub expires_in: i64,
+    /// The token that buys a new access token, when one was issued.
+    ///
+    /// **A refresh is answered without one**, and so is a second sign-in that Google decides has
+    /// already been consented to. Whoever stores this must keep the refresh token it already had
+    /// when a response arrives without one, rather than replacing it with nothing: losing it means
+    /// losing the ability to delete what has already been published.
+    #[serde(default)]
+    pub refresh_token: Option<String>,
+    /// What was actually granted, which can be less than what was asked for.
+    #[serde(default)]
+    pub scope: Option<String>,
+}
+
+impl TokenResponse {
+    /// The moment the access token stops working, given when the answer arrived.
+    ///
+    /// A minute is taken off. A token that expires while a request is in flight fails that
+    /// request, and the clocks at each end are not the same clock.
+    #[must_use]
+    pub fn expires_at(&self, answered_at: DateTime<Utc>) -> DateTime<Utc> {
+        answered_at + Duration::seconds(self.expires_in.saturating_sub(60).max(0))
+    }
+
+    /// Whether the granted scope covers `wanted`.
+    ///
+    /// The user can grant less than was asked for. Uploading with a scope that was refused fails
+    /// at the first call, a long way from the screen where the refusal happened, so the answer is
+    /// read here instead. A response that names no scope is taken at its word and accepted.
+    #[must_use]
+    pub fn granted(&self, wanted: &str) -> bool {
+        match &self.scope {
+            None => true,
+            Some(granted) => granted.split(' ').any(|scope| scope == wanted),
+        }
+    }
+}
+
+/// Reads what the token endpoint answered.
+///
+/// # Errors
+///
+/// - [`Error::TokenEndpoint`] if the answer is an OAuth error rather than a set of tokens. The
+///   message carries the provider's own `error` and `error_description`, because the useful ones
+///   are specific: `invalid_grant` for a code already used or a refresh token that has expired,
+///   `invalid_client` for a client identifier that no longer names anything.
+/// - [`Error::Json`] if the answer is neither.
+pub fn read_token_response(json: &str) -> Result<TokenResponse> {
+    /// The shape an OAuth error answer has, which is not the shape of a token.
+    #[derive(Deserialize)]
+    struct ErrorResponse {
+        error: String,
+        error_description: Option<String>,
+    }
+
+    if let Ok(failure) = serde_json::from_str::<ErrorResponse>(json) {
+        return Err(Error::TokenEndpoint(match failure.error_description {
+            Some(description) => format!("{} ({})", failure.error, description),
+            None => failure.error,
+        }));
+    }
+
+    Ok(serde_json::from_str(json)?)
+}
+
+/// Builds an `application/x-www-form-urlencoded` body one field at a time.
+struct Form(String);
+
+impl Form {
+    fn new() -> Self {
+        Self(String::new())
+    }
+
+    fn add(&mut self, name: &str, value: &str) {
+        if !self.0.is_empty() {
+            self.0.push('&');
+        }
+        self.0.push_str(name);
+        self.0.push('=');
+        percent_encode_into(value, &mut self.0);
+    }
+
+    fn finish(self) -> String {
+        self.0
+    }
 }
 
 /// Encodes bytes as base64url with no padding, which is what PKCE and `state` both call for.
@@ -474,6 +642,126 @@ mod tests {
         assert_eq!(percent_decode("%2"), "%2");
         assert_eq!(percent_decode("%"), "%");
         assert_eq!(percent_decode("%zz"), "%zz");
+    }
+
+    fn exchange<'a>(secret: Option<&'a str>) -> TokenExchange<'a> {
+        TokenExchange {
+            code: "4/0AX4",
+            client_id: "1234.apps.googleusercontent.com",
+            client_secret: secret,
+            redirect_uri: "http://127.0.0.1:49152",
+            verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+        }
+    }
+
+    #[test]
+    fn the_exchange_body_carries_the_verifier_rather_than_the_challenge() {
+        assert_eq!(
+            exchange(Some("GOCSPX-secret")).form_body(),
+            "grant_type=authorization_code\
+             &code=4%2F0AX4\
+             &client_id=1234.apps.googleusercontent.com\
+             &client_secret=GOCSPX-secret\
+             &redirect_uri=http%3A%2F%2F127.0.0.1%3A49152\
+             &code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+        );
+    }
+
+    #[test]
+    fn an_exchange_without_a_secret_leaves_the_field_out_rather_than_sending_an_empty_one() {
+        let body = exchange(None).form_body();
+        assert!(!body.contains("client_secret"));
+        assert!(body.contains("code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"));
+    }
+
+    #[test]
+    fn a_refresh_asks_for_a_new_access_token_and_nothing_else() {
+        let refresh = TokenRefresh {
+            refresh_token: "1//0e-token",
+            client_id: "1234.apps.googleusercontent.com",
+            client_secret: None,
+        };
+        assert_eq!(
+            refresh.form_body(),
+            "grant_type=refresh_token\
+             &refresh_token=1%2F%2F0e-token\
+             &client_id=1234.apps.googleusercontent.com"
+        );
+    }
+
+    #[test]
+    fn a_token_answer_reads_back() {
+        let response = read_token_response(
+            r#"{"access_token":"ya29.a0","expires_in":3599,"refresh_token":"1//0e",
+                "scope":"https://www.googleapis.com/auth/drive.file","token_type":"Bearer"}"#,
+        )
+        .unwrap();
+        assert_eq!(response.access_token, "ya29.a0");
+        assert_eq!(response.refresh_token.as_deref(), Some("1//0e"));
+        assert!(response.granted(GOOGLE_DRIVE_FILE_SCOPE));
+    }
+
+    #[test]
+    fn a_refresh_answer_carries_no_refresh_token_and_that_is_not_an_error() {
+        // Whoever stores this has to keep the refresh token it already had. Replacing it with
+        // nothing is what loses the ability to delete what has already been published.
+        let response =
+            read_token_response(r#"{"access_token":"ya29.a0","expires_in":3599}"#).unwrap();
+        assert!(response.refresh_token.is_none());
+    }
+
+    #[test]
+    fn an_oauth_error_is_an_error_rather_than_a_token() {
+        let error =
+            read_token_response(r#"{"error":"invalid_grant","error_description":"Bad Request"}"#)
+                .unwrap_err();
+        assert!(
+            matches!(&error, Error::TokenEndpoint(reported) if reported == "invalid_grant (Bad Request)")
+        );
+
+        let error = read_token_response(r#"{"error":"invalid_client"}"#).unwrap_err();
+        assert!(matches!(&error, Error::TokenEndpoint(reported) if reported == "invalid_client"));
+    }
+
+    #[test]
+    fn an_answer_that_is_neither_is_a_json_error() {
+        assert!(matches!(
+            read_token_response("<html>502</html>").unwrap_err(),
+            Error::Json(_)
+        ));
+    }
+
+    #[test]
+    fn an_access_token_is_treated_as_expiring_a_minute_early() {
+        let answered_at = DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let response = read_token_response(r#"{"access_token":"a","expires_in":3599}"#).unwrap();
+        assert_eq!(
+            response.expires_at(answered_at),
+            answered_at + Duration::seconds(3539)
+        );
+
+        // A token shorter than the margin is already expired rather than expiring in the past.
+        let response = read_token_response(r#"{"access_token":"a","expires_in":30}"#).unwrap();
+        assert_eq!(response.expires_at(answered_at), answered_at);
+    }
+
+    #[test]
+    fn a_scope_that_was_refused_is_noticed_here_rather_than_at_the_first_upload() {
+        let response =
+            read_token_response(r#"{"access_token":"a","expires_in":3599,"scope":"openid email"}"#)
+                .unwrap();
+        assert!(!response.granted(GOOGLE_DRIVE_FILE_SCOPE));
+
+        // One of several granted scopes still counts, and a prefix of one does not.
+        let response = read_token_response(
+            r#"{"access_token":"a","expires_in":3599,
+                "scope":"openid https://www.googleapis.com/auth/drive.file"}"#,
+        )
+        .unwrap();
+        assert!(response.granted(GOOGLE_DRIVE_FILE_SCOPE));
+        assert!(!response.granted("https://www.googleapis.com/auth/drive"));
     }
 
     #[test]

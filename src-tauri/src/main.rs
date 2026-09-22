@@ -17,6 +17,8 @@
 //! on every platform. What stays here is what genuinely needs a screen, a file or a network.
 
 mod capture;
+mod google_client;
+mod signin;
 mod strings;
 
 use chrono::{DateTime, SecondsFormat, Utc};
@@ -357,7 +359,12 @@ fn main() {
             finish_capture,
             cancel_capture,
             overlay_ready,
-            last_shot
+            last_shot,
+            signin::sign_in,
+            signin::sign_in_status,
+            signin::sign_out,
+            signin::save_google_client,
+            signin::forget_google_client
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -379,6 +386,7 @@ fn main() {
             app.manage(hotkey);
             app.manage(LastShot::default());
             app.manage(capture::Capturing::default());
+            app.manage(signin::Session::default());
 
             build_tray(&handle)?;
 

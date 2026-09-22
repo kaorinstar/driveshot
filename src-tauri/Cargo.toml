@@ -46,3 +46,19 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-opener = "2"
 xcap = "0.9.8"
 dirs = "7.0.0"
+# The one HTTPS request the sign-in makes: the token exchange. rustls rather than the platform's
+# own TLS library, so that a build needs no OpenSSL and behaves the same on both platforms; no
+# default features, because the cookie store, gzip and the blocking client are all things this
+# does not do.
+#
+# The roots are the operating system's rather than the bundle rustls ships with, and that is the
+# deliberate part. Driveshot is used on work machines, where the network is often behind a proxy
+# that reissues certificates under a CA the company installed. That CA is in the system store and
+# is not in anybody's bundled root list, so a bundled list turns the sign-in into an unexplainable
+# certificate error on exactly the machines this is for. It also means a root the operating system
+# distrusts is distrusted here too, without waiting for a new release of Driveshot.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots"] }
+# The PKCE verifier and the OAuth `state` are random values, and randomness is an operating system
+# call. driveshot-core deliberately does not make one, so it takes the bytes and this supplies
+# them.
+getrandom = "0.3"
