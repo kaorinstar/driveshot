@@ -47,6 +47,9 @@ in [README.md](README.md).
 - **Clicking the tray icon now takes a shot** instead of opening the settings window. It does
   the same as the capture key, so the shot you want is one click away rather than a menu away.
   The settings window is still on the menu that the right button opens.
+- The settings window no longer says that capture is not built. It has been built since the
+  entry above about the capture key; the sentence beside that key now says what pressing it
+  actually does.
 - **You can now sign in to Google Drive**, from the settings window. It opens your browser, you
   approve it at Google, and the window says it is connected. Driveshot asks for permission to add
   files to your Drive and to reach nothing else in it; if that permission is not given, it refuses

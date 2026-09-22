@@ -44,8 +44,8 @@ export const strings = {
   hotkeyNeverPressed: "It has not been pressed yet.",
   hotkeyLastPressed: (when: string) => `Last pressed at ${when}.`,
   hotkeyUnavailable: "The capture key could not be read.",
-  captureNotBuilt:
-    "Capture itself is not built yet, so pressing the key only brings this window up.",
+  captureWhatItDoes:
+    "Pressing it dims every screen. Drag a rectangle on one of them and that part is saved to your pictures folder; nothing is uploaded yet.",
 
   retentionHeading: "How long a shot is kept",
   retentionNote:

@@ -190,7 +190,7 @@ async function showHotkey(): Promise<void> {
         ? strings.hotkeyNeverPressed
         : strings.hotkeyLastPressed(new Date(status.last_fired).toLocaleString());
 
-    result.textContent = `${held} ${pressed} ${strings.captureNotBuilt}`;
+    result.textContent = `${held} ${pressed} ${strings.captureWhatItDoes}`;
   } catch {
     result.textContent = strings.hotkeyUnavailable;
   }
