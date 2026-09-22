@@ -142,14 +142,11 @@ pub fn client_file_has_no_id(path: &std::path::Path) -> String {
 /// Said when this build carries no client of its own and the user has not supplied one.
 ///
 /// This is what a copy of Driveshot built from source without credentials looks like. It is a
-/// normal state rather than a fault, so the sentence says what to do about it.
-pub fn no_client_at_all(path: &str) -> String {
-    format!(
-        "This copy of Driveshot has no Google client built in. Create one of your own in the \
-         Google Cloud console as a 'Desktop app', then write it to {path} as \
-         {{\"client_id\": \"...\", \"client_secret\": \"...\"}}."
-    )
-}
+/// normal state rather than a fault, so the sentence says what to do about it - and what to do is
+/// in the window the sentence appears in, rather than in a file somebody has to go and find.
+pub const NO_CLIENT_AT_ALL: &str =
+    "This copy of Driveshot has no Google client built in. Create one in the Google Cloud console \
+     as a 'Desktop app', then put it in the fields below.";
 
 /// The page the browser is left on once the sign-in has been read.
 pub const BROWSER_PAGE_DONE: &str = "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\">\
@@ -166,3 +163,19 @@ pub const BROWSER_PAGE_FAILED: &str = "<!doctype html><html lang=\"en\"><meta ch
 pub const BROWSER_PAGE_IGNORED: &str = "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\">\
     <title>Driveshot</title><body style=\"font-family:system-ui;margin:4rem;text-align:center\">\
     <p>Driveshot is waiting for a sign-in. There is nothing to see here.</p></body></html>";
+
+/// Said when the client identifier field was left empty.
+pub const CLIENT_NEEDS_AN_ID: &str =
+    "A Google client needs a client ID. Copy it from the Google Cloud console.";
+
+/// Said when the platform will not say where an application's configuration goes.
+pub const CLIENT_NO_CONFIG_FOLDER: &str =
+    "Driveshot could not find a folder to keep its settings in, so it cannot save a Google client.";
+
+/// Said when the file holding the user's own OAuth client could not be written or removed.
+pub fn client_file_unwritable(path: &std::path::Path, reason: &str) -> String {
+    format!(
+        "Driveshot could not save your Google client to {}: {reason}",
+        path.display()
+    )
+}

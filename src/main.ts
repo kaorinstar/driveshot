@@ -36,6 +36,7 @@ interface SignInStatus {
   client_source: "built-in" | "user-supplied" | null;
   client_problem: string | null;
   client_file: string | null;
+  saved_client_id: string | null;
 }
 
 /** The retention periods the window offers. `null` means the shot is kept until deleted by hand. */
@@ -57,6 +58,12 @@ function writeStaticText(): void {
   element("sign-in-note").textContent = strings.signInNote;
   element("sign-in-button").textContent = strings.signInConnect;
   element("sign-out-button").textContent = strings.signInDisconnect;
+  element("client-summary").textContent = strings.clientSummary;
+  element("client-note").textContent = strings.clientNote;
+  element("client-id-label").textContent = strings.clientIdLabel;
+  element("client-secret-label").textContent = strings.clientSecretLabel;
+  element("client-save").textContent = strings.clientSave;
+  element("client-forget").textContent = strings.clientForget;
   element("last-shot-heading").textContent = strings.lastShotHeading;
   element("hotkey-heading").textContent = strings.hotkeyHeading;
   element("hotkey-note").textContent = strings.hotkeyNote;
@@ -90,11 +97,45 @@ async function drawProviders(): Promise<void> {
   }
 }
 
+/**
+ * Puts the saved client back into the fields under the sign-in card.
+ *
+ * The identifier is filled in; the secret never is, because the Rust side does not return it. An
+ * empty secret field means "keep what is stored", which is what its placeholder says.
+ */
+function drawClient(status: SignInStatus): void {
+  const id = element<HTMLInputElement>("client-id");
+  const secret = element<HTMLInputElement>("client-secret");
+  const forget = element<HTMLButtonElement>("client-forget");
+  const own = status.saved_client_id;
+
+  // Only while the user is not part-way through typing one: redrawing on every window focus
+  // would otherwise undo what they had half entered.
+  if (document.activeElement !== id) {
+    id.value = own ?? "";
+  }
+  secret.placeholder =
+    own === null ? strings.clientSecretNone : strings.clientSecretKept;
+  forget.hidden = own === null;
+
+  const where = element("client-result");
+  if (where.textContent === "" || where.textContent === null) {
+    where.textContent =
+      own === null
+        ? strings.clientNoneSaved
+        : status.client_file === null
+          ? ""
+          : strings.clientWhereItLives(status.client_file);
+  }
+}
+
 /** Draws what `sign_in_status` answered: the connection, then which client it would use. */
 function drawSignIn(status: SignInStatus): void {
   const result = element("sign-in");
   const connect = element<HTMLButtonElement>("sign-in-button");
   const disconnect = element<HTMLButtonElement>("sign-out-button");
+
+  drawClient(status);
 
   // A client problem is the thing to say first. Without one there is nothing to sign in with, and
   // the Rust side's sentence names the file to write and what to put in it.
@@ -240,6 +281,40 @@ async function start(): Promise<void> {
   });
   element("sign-in-button").addEventListener("click", () => {
     void signIn();
+  });
+  element("client-save").addEventListener("click", () => {
+    void (async () => {
+      const id = element<HTMLInputElement>("client-id");
+      const secret = element<HTMLInputElement>("client-secret");
+      try {
+        const status = await invoke<SignInStatus>("save_google_client", {
+          clientId: id.value,
+          clientSecret: secret.value,
+        });
+        // The secret is never read back, so the field is emptied rather than left holding a value
+        // that a later save would send again.
+        secret.value = "";
+        element("client-result").textContent =
+          status.client_file === null
+            ? strings.clientFailed
+            : strings.clientSaved(status.client_file);
+        drawSignIn(status);
+      } catch (problem) {
+        element("client-result").textContent = String(problem);
+      }
+    })();
+  });
+  element("client-forget").addEventListener("click", () => {
+    void (async () => {
+      try {
+        const status = await invoke<SignInStatus>("forget_google_client");
+        element<HTMLInputElement>("client-secret").value = "";
+        element("client-result").textContent = strings.clientForgotten;
+        drawSignIn(status);
+      } catch (problem) {
+        element("client-result").textContent = String(problem);
+      }
+    })();
   });
   element("sign-out-button").addEventListener("click", () => {
     void (async () => {

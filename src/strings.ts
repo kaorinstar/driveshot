@@ -30,6 +30,21 @@ export const strings = {
   signInOnlyInMemory:
     "This lasts until Driveshot is closed. Keeping it across restarts is not built yet.",
 
+  clientSummary: "Use a Google client of your own",
+  clientNote:
+    "Driveshot signs in through its own Google client. Putting your own here makes it depend on your Google Cloud project instead of this one, which is what to do if the built-in one ever stops working. Create it in the Google Cloud console as a Desktop app.",
+  clientIdLabel: "Client ID",
+  clientSecretLabel: "Client secret",
+  clientSecretKept: "Saved. Leave blank to keep it.",
+  clientSecretNone: "Optional",
+  clientSave: "Save",
+  clientForget: "Use the built-in client again",
+  clientNoneSaved: "No client of your own is saved, so the built-in one is used.",
+  clientSaved: (path: string) => `Saved to ${path}. Sign in again to use it.`,
+  clientForgotten: "Removed. The built-in client is used again.",
+  clientWhereItLives: (path: string) => `It is kept in ${path}.`,
+  clientFailed: "The Google client could not be saved.",
+
   overlayHint: "Drag to select an area. Esc to cancel.",
 
   lastShotHeading: "The last shot",

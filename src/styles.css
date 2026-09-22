@@ -210,3 +210,28 @@ body {
   filter: none;
   color: var(--text);
 }
+
+/* The fields for a Google client of one's own. Folded away because most people never open it:
+   the built-in client is what they use, and this is the escape hatch for when it stops working. */
+.drawer {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--card-border);
+}
+
+.drawer__summary {
+  color: var(--accent);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.drawer__summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Inside the drawer the note explains the fields below it rather than the card above it, so it
+   sits closer to them. */
+.drawer .card__note {
+  margin-top: 12px;
+}

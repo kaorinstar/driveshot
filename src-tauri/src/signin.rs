@@ -132,8 +132,13 @@ pub struct Status {
     pub client_source: Option<Source>,
     /// Why there is no usable client, or `null` when there is one.
     pub client_problem: Option<String>,
-    /// Where to write a client of one's own, so the window can say it without knowing the path.
+    /// Where a client of one's own is kept, so the window can say it without knowing the path.
     pub client_file: Option<String>,
+    /// The identifier of the user's own client, so the window can put it back in its field.
+    ///
+    /// `null` when there is none. The secret is never returned: the window has no use for it, and
+    /// an empty secret field means "keep what is stored" rather than "clear it".
+    pub saved_client_id: Option<String>,
 }
 
 /// Whether Driveshot is signed in, and what client it would use.
@@ -158,7 +163,42 @@ pub fn sign_in_status(app: AppHandle, session: tauri::State<'_, Session>) -> Sta
         client_source,
         client_problem,
         client_file: google_client::client_file(&app).map(|path| path.display().to_string()),
+        saved_client_id: google_client::saved_client_id(&app),
     }
+}
+
+/// Saves a Google client of the user's own, and answers with the state that leaves.
+///
+/// Signing in is not undone by this. A client that has changed makes the tokens held against the
+/// old one worthless, so they are dropped: leaving them would leave the window claiming a
+/// connection that the next request would find broken.
+///
+/// # Errors
+///
+/// Returns a sentence for the user: an empty identifier, or a file that could not be written.
+#[tauri::command]
+pub fn save_google_client(
+    app: AppHandle,
+    client_id: String,
+    client_secret: String,
+) -> Result<Status, String> {
+    google_client::save(&app, &client_id, &client_secret)?;
+    app.state::<Session>().clear();
+    Ok(sign_in_status(app.clone(), app.state::<Session>()))
+}
+
+/// Removes the user's own client, so the built-in one is used again.
+///
+/// As with saving, whatever was signed in belonged to the client being dropped, so it goes too.
+///
+/// # Errors
+///
+/// Returns a sentence for the user when the file is there and will not go.
+#[tauri::command]
+pub fn forget_google_client(app: AppHandle) -> Result<Status, String> {
+    google_client::forget(&app)?;
+    app.state::<Session>().clear();
+    Ok(sign_in_status(app.clone(), app.state::<Session>()))
 }
 
 /// Forgets the tokens held for this run.

@@ -362,7 +362,9 @@ fn main() {
             last_shot,
             signin::sign_in,
             signin::sign_in_status,
-            signin::sign_out
+            signin::sign_out,
+            signin::save_google_client,
+            signin::forget_google_client
         ])
         .setup(|app| {
             let handle = app.handle().clone();

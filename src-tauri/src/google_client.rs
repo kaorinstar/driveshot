@@ -96,11 +96,7 @@ pub fn current(app: &AppHandle) -> Result<(OAuthClient, Source), String> {
             },
             Source::BuiltIn,
         )),
-        None => Err(crate::strings::no_client_at_all(
-            &client_file(app)
-                .map(|path| path.display().to_string())
-                .unwrap_or_else(|| CLIENT_FILE.to_owned()),
-        )),
+        None => Err(crate::strings::NO_CLIENT_AT_ALL.to_owned()),
     }
 }
 
@@ -110,4 +106,84 @@ pub fn client_file(app: &AppHandle) -> Option<PathBuf> {
         .app_config_dir()
         .ok()
         .map(|dir| dir.join(CLIENT_FILE))
+}
+
+/// The identifier of the user's own client, if they have supplied one.
+///
+/// This is what the settings window puts back in its field, so somebody correcting a typo does
+/// not have to find the value again. The secret is deliberately not returned: the window has no
+/// reason to hold it, and leaving its field blank keeps whatever is stored.
+pub fn saved_client_id(app: &AppHandle) -> Option<String> {
+    let path = client_file(app)?;
+    let text = std::fs::read_to_string(path).ok()?;
+    let client: OAuthClient = serde_json::from_str(&text).ok()?;
+    Some(client.client_id).filter(|id| !id.trim().is_empty())
+}
+
+/// Writes the user's own client, replacing whatever was there.
+///
+/// An empty `client_secret` keeps the one already stored rather than clearing it, because the
+/// window never shows the secret and so cannot send it back. Clearing it on purpose is what
+/// [`forget`] is for.
+///
+/// # Errors
+///
+/// Returns a sentence for the user: an empty identifier, a configuration folder the platform will
+/// not name, or a file that could not be written.
+pub fn save(app: &AppHandle, client_id: &str, client_secret: &str) -> Result<(), String> {
+    let client_id = client_id.trim();
+    if client_id.is_empty() {
+        return Err(crate::strings::CLIENT_NEEDS_AN_ID.to_owned());
+    }
+
+    let path =
+        client_file(app).ok_or_else(|| crate::strings::CLIENT_NO_CONFIG_FOLDER.to_owned())?;
+
+    let client_secret = match client_secret.trim() {
+        "" => saved_secret(app),
+        secret => Some(secret.to_owned()),
+    };
+
+    let client = OAuthClient {
+        client_id: client_id.to_owned(),
+        client_secret,
+    };
+    let text = serde_json::to_string_pretty(&client)
+        .map_err(|error| crate::strings::client_file_unwritable(&path, &error.to_string()))?;
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| crate::strings::client_file_unwritable(&path, &error.to_string()))?;
+    }
+    std::fs::write(&path, text)
+        .map_err(|error| crate::strings::client_file_unwritable(&path, &error.to_string()))
+}
+
+/// Removes the user's own client, so the built-in one is used again.
+///
+/// A file that is not there is not a failure: the end state is what was asked for either way.
+///
+/// # Errors
+///
+/// Returns a sentence for the user when the file is there and will not go.
+pub fn forget(app: &AppHandle) -> Result<(), String> {
+    let Some(path) = client_file(app) else {
+        return Ok(());
+    };
+    match std::fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(crate::strings::client_file_unwritable(
+            &path,
+            &error.to_string(),
+        )),
+    }
+}
+
+/// The secret already stored, so that saving without one does not throw it away.
+fn saved_secret(app: &AppHandle) -> Option<String> {
+    let path = client_file(app)?;
+    let text = std::fs::read_to_string(path).ok()?;
+    let client: OAuthClient = serde_json::from_str(&text).ok()?;
+    client.client_secret.filter(|secret| !secret.is_empty())
 }
