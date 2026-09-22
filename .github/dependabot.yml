@@ -41,3 +41,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      # The init and analyze halves of codeql-action are one action in two pieces, and a workflow
+      # that mixes their versions fails with a configuration error after uploading nothing. Left
+      # ungrouped, each half arrives as a pull request of its own and each of those fails on its
+      # own. Grouped, they arrive together and the pair can be merged as one.
+      codeql-action:
+        patterns:
+          - 'github/codeql-action*'
