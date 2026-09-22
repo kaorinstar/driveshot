@@ -189,6 +189,8 @@ pub fn finish(
     // has to run for the screen to be repainted without them (#49).
     std::thread::sleep(std::time::Duration::from_millis(120));
 
+    screen_recording_allowed()?;
+
     let (x, y) = lookup_point(geometry);
     let monitor = xcap::Monitor::from_point(x, y)
         .map_err(|error| strings::capture_failed(&error.to_string()))?;
@@ -218,6 +220,40 @@ pub fn finish(
     })?;
 
     Ok(path)
+}
+
+/// Refuses the capture if macOS has not been told Driveshot may read the screen.
+///
+/// This exists because the alternative is worse than an error. `xcap` captures on macOS with
+/// `CGWindowListCreateImage`, and without the permission that function does not fail: it returns
+/// the desktop picture and the menu bar, with every window left out. Driveshot would save a
+/// perfectly valid photograph of the wrong thing and say the shot had worked (#54).
+///
+/// Asking is also how the permission is ever offered. `CGRequestScreenCaptureAccess` is what
+/// shows the system prompt, once, the first time an application asks; nothing here asked before,
+/// which is why nobody had seen that prompt. It answers `false` immediately on every call after
+/// that, so the sentence the user is given has to carry the rest: System Settings, and a restart.
+///
+/// On every other platform there is nothing to ask, and this does nothing.
+fn screen_recording_allowed() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        use objc2_core_graphics::{CGPreflightScreenCaptureAccess, CGRequestScreenCaptureAccess};
+
+        if CGPreflightScreenCaptureAccess() {
+            return Ok(());
+        }
+
+        // Shows the prompt if this is the first time of asking. Its answer is not trusted as a
+        // second chance: macOS has already decided for this capture, and the user has to restart
+        // Driveshot whichever way they answer.
+        CGRequestScreenCaptureAccess();
+
+        return Err(strings::CAPTURE_NO_SCREEN_PERMISSION.to_owned());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    Ok(())
 }
 
 /// Runs `work` on the thread that owns the windows, and waits for its answer.

@@ -971,6 +971,7 @@ dependencies = [
  "chrono",
  "dirs 7.0.0",
  "driveshot-core",
+ "objc2-core-graphics",
  "serde",
  "serde_json",
  "tauri",

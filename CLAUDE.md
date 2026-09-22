@@ -290,6 +290,25 @@ private API" without replacing the overlay: the alternative is showing a capture
 opaque window instead of dimming a transparent one, which is a different design, not a smaller
 one. #18 has that design written out, with what it would cost.
 
+### Asking macOS for the screen before capturing, rather than after failing
+
+`capture::screen_recording_allowed` looks like a courtesy - check a permission, give a nicer
+message than the error would have been. There is no error to give a nicer message than, and that
+is the point.
+
+Without the Screen Recording permission, `CGWindowListCreateImage` - which is what `xcap` captures
+with on macOS - does not fail. It returns the desktop picture and the menu bar, with every window
+left out. Driveshot would save a valid photograph of the wrong thing and report the shot as taken
+(#54). Every other failure in `capture.rs` is said out loud; this one could not be, because
+nothing knew it had happened.
+
+`CGRequestScreenCaptureAccess` is also the only thing that shows the system prompt, once, the
+first time an application asks. Nothing asked before, which is why nobody had ever seen it.
+
+Both calls come from `objc2-core-graphics`, which `xcap` already depends on, and both are declared
+safe - so this needs no `unsafe` and `#![forbid(unsafe_code)]` is untouched. The `CGWindow`
+feature is named in `Cargo.toml` rather than relied on from `xcap`.
+
 ### `#[tauri::command(async)]` on `finish_capture` and nothing else
 
 Every other command in `main.rs` is a plain `#[tauri::command]`, and this one looks like an
@@ -364,8 +383,12 @@ place (#7).
 - Nothing is code-signed, on either platform. SmartScreen warns on Windows; macOS refuses to open
   the application until it is allowed through System Settings (#12).
 - Retention only runs while Driveshot does. This is one of the open decisions above (#3).
-- macOS screen capture will need the "Screen Recording" permission (#5). There is no way around it
-  and Driveshot will not try to find one.
+- macOS screen capture needs the "Screen Recording" permission. There is no way around it and
+  Driveshot will not try to find one; what it does is ask for it and refuse to capture without it,
+  because macOS answers a capture made without it with the desktop picture rather than an error
+  (#54). **The permission has to be granted again for every build installed**, because macOS
+  identifies an application by its signature and each build is signed ad-hoc with a different one.
+  A Developer ID (#12) is what would stop that.
 - The icon is drawn by `tools/make-icon.py` rather than by a designer.
 - The name has not been checked against a trademark database, only searched for on GitHub and in
   the application stores (#11).

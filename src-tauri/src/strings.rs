@@ -73,6 +73,26 @@ pub fn capture_no_monitor_list(reason: &str) -> String {
     format!("Driveshot could not ask which monitors are attached: {reason}")
 }
 
+/// Said when macOS has not been told that Driveshot may read the screen.
+///
+/// It names the restart because macOS requires one: granting the permission does not reach a
+/// process that is already running. It names the signature because that is why a permission
+/// granted last week is gone this week - every build carries a different ad-hoc signature, and
+/// macOS identifies an application by that (#12, #54).
+///
+/// The only string here that belongs to one platform. No other system asks for anything before a
+/// screen may be read, so on Windows this sentence is not merely unused but untrue, and it is not
+/// compiled there.
+#[cfg(target_os = "macos")]
+pub const CAPTURE_NO_SCREEN_PERMISSION: &str = concat!(
+    "macOS has not given Driveshot permission to record the screen, so there is nothing it can ",
+    "capture. Open System Settings, then Privacy & Security, then Screen Recording, and switch ",
+    "Driveshot on - adding it with the + button if it is not listed. Then quit Driveshot from the ",
+    "menu bar and start it again: macOS does not hand the permission to an application that is ",
+    "already running. A new version of Driveshot has to be allowed again, because it is not ",
+    "signed with a certificate that would let macOS recognise it as the same application.",
+);
+
 /// Said when the thread that owns the windows could not be reached.
 ///
 /// A capture no longer runs on that thread, so it has to ask it to hide the overlays and say
