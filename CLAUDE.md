@@ -180,9 +180,16 @@ Full details are in `docs/architecture.md`. The rules that matter most:
 
 - Line endings are LF, except `.bat`, `.cmd` and `.ps1`, which use CRLF. This is enforced by
   `.gitattributes`.
+- **A change starts from an issue.** Write one before the code. It carries what never reaches the
+  diff — why a decision went the way it did, what was ruled out, and what a human has to check on a
+  real machine — and it is what the branch name and the pull request point back to. Finding no
+  issue for a task is not permission to begin without one; it means the issue is the first thing to
+  write.
 - Branch names are `<type>/<issue number>-<short description>`, for example `feat/3-region-capture`,
   `fix/18-retention-boundary`, `ci/7-split-workflow`, `docs/2-architecture`. The types are `feat`,
-  `fix`, `docs`, `ci` and `chore`. Drop the issue number when the work has no issue.
+  `fix`, `docs`, `ci` and `chore`. The number is dropped only where there is genuinely nothing for
+  an issue to say — a typo, a comment, a file moved. A branch without one is otherwise a sign that
+  the issue was skipped, not a second ordinary way of naming a branch.
   A Claude Code session is assigned a `claude/...` branch by default. **That name is not part of
   this convention** — it describes the session rather than the change. Point it out and move the
   work to a branch that follows the convention before pushing.
