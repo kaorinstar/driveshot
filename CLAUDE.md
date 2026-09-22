@@ -207,8 +207,9 @@ Quitting is the tray menu's last entry, and nothing else exits the application.
 
 `src-tauri/Info.plist` sets `LSUIElement` so the bundle has no Dock icon, and `main.rs` asks for
 `ActivationPolicy::Accessory` at runtime. The plist covers the packaged application; the runtime
-call covers `tauri dev`, which never reads it. Neither has been tested — nobody has run the macOS
-build.
+call covers `tauri dev`, which never reads it. The plist has now been seen working: the packaged
+application put its icon in the menu bar and nothing in the Dock. The runtime call has not — that
+one needs somebody to run `tauri dev` on a Mac.
 
 ### Nothing asks a platform for a display's scale factor
 
@@ -267,6 +268,27 @@ image from its releases page, so nothing planned is lost, but do not turn the fl
 private API" without replacing the overlay: the alternative is showing a captured image in an
 opaque window instead of dimming a transparent one, which is a different design, not a smaller
 one. #18 has that design written out, with what it would cost.
+
+### `"signingIdentity": "-"` in `tauri.conf.json`
+
+It looks like a placeholder left behind, or like an attempt at the code signing #12 is about. It is
+neither. `-` is `codesign`'s own name for an ad-hoc signature: one that proves nothing about who
+built the application, and that costs nothing because there is no certificate behind it.
+
+Without it, `tauri-bundler` skips signing altogether, and **the macOS build cannot be started at
+all** (#37). `--target universal-apple-darwin` merges the Intel and Apple Silicon binaries with
+`lipo`, and a binary produced that way has to be signed afterwards; nothing did, so macOS killed
+the process at launch on both architectures. Allowing the application through System Settings did
+not help, because the problem was never Gatekeeper's verdict — an unsigned bundle does not run.
+
+The setting lives in the configuration rather than in a workflow on purpose. A local
+`npm run tauri build` has to produce a runnable application too, and `build.yml` and `release.yml`
+are meant to stay identical.
+
+**This is not a substitute for #12.** An ad-hoc signature is not a Developer ID, and nothing here
+is notarized, so macOS still refuses the application on first run until the user allows it through
+System Settings → Privacy & Security. What changed is that allowing it now works. When a
+certificate is bought, this value is what the real identity replaces.
 
 ### `NonZeroU32` in `Retention::Days`
 
@@ -444,9 +466,18 @@ it correctly. That is what drawing each size at its own resolution buys: `npx ta
 resampled one large image down to 16 pixels, which is what the tray asks for at 100% scaling, and
 a mark that detailed does not survive it.
 
-**macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
-is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as
-unverified until someone does, and say so rather than implying otherwise.
+**macOS has now been run, once, and it did not start.** The disk image from a manual `release.yml`
+run was opened on a MacBook Pro 13" (2020, Intel Core i7) on macOS Tahoe 26.7. The application was
+killed at launch, because the bundle carried no code signature at all (#37) — `lipo` leaves a
+universal binary unsigned and nothing signed it afterwards. Signing the installed copy by hand with
+`codesign --force --sign -` made it start, and it printed `Driveshot holds CmdOrCtrl+Shift+D.`, so
+the bundle itself is sound and the hotkey registers on macOS. **The icon then appeared in the menu
+bar**, which is the first thing about the application's appearance on macOS that anyone has seen:
+the tray from #4 and `LSUIElement` both do what they were written to do there.
+
+**Everything past that is still unverified on macOS**: the tray menu, the settings window, capture,
+and the Screen Recording permission. Treat all of it as untested, and say so rather than implying
+otherwise.
 
 ## Choosing a model for subagents
 
