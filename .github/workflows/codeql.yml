@@ -1,0 +1,72 @@
+# Static analysis of this project's own code.
+#
+# It covers what the dependency check in build.yml does not. That one reads the list of known
+# vulnerabilities in other people's crates and packages, and says nothing about the code written
+# here. CodeQL reads this code. Code scanning is free on public repositories alone, which is why
+# this file arrives with the repository being published (#10).
+#
+# Nothing is built for the analysis. Both languages here are extracted from source: CodeQL's own
+# Rust check runs init and then analyze with no build step between them, and TypeScript never
+# needed one. So `build-mode` is not set. It is worth knowing that the input is only available
+# when a job analyses one language, which the matrix below already arranges - so if Rust ever does
+# need a build mode, there is somewhere to put it.
+#
+# **Rust support is in public preview.** CodeQL's own test for it names `stable-v2.22.1` as "first
+# public preview version". Treat a quiet result for the Rust half as "nothing was reported" rather
+# than "there is nothing to report", and expect the queries to change under it.
+#
+# The settings window is analysed as `javascript-typescript`. CodeQL has no separate TypeScript
+# language - its alias table maps `typescript` onto `javascript` - so naming both would be naming
+# one language twice.
+
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays, 04:23 UTC. Not on the hour: everything scheduled there queues behind everything
+    # else scheduled there.
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyse:
+    name: analyse ${{ matrix.language }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      # Writing the findings to the Security tab is the one thing this job does beyond reading the
+      # source.
+      security-events: write
+      # The upload reads the run it belongs to, through the API that lists workflow runs.
+      actions: read
+
+    strategy:
+      # One language failing must not cancel the other. They have nothing to do with each other,
+      # and a Rust extractor in preview is the more likely of the two to have a bad day.
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, rust]
+
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+
+      # The two codeql-action steps move together. A run whose init and analyze come from
+      # different versions stops with a configuration error after uploading nothing, so
+      # .github/dependabot.yml groups them into one pull request; change them together here as
+      # well.
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd   # v4.38.1
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Analyse
+        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd   # v4.38.1
