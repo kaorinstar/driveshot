@@ -73,22 +73,34 @@ Both answers come from the core crate, through two Tauri commands in `src-tauri/
 is a skeleton on purpose: it makes the whole path - window, application, core, tests, CI,
 installer - real and provable before any of the hard parts are written on top of it.
 
-## The two decisions still open
+## Decisions: one settled, one still open
 
-Neither has to be made to keep building, and both change what is built, so they are written down
-rather than settled by accident.
+Neither had to be made to keep building, and both change what is built, so they were written down
+rather than settled by accident. One of them has now been made.
 
-### How many providers to support first ([#2](https://github.com/kaorinstar/driveshot/issues/2))
+### Which provider comes first: Google Drive, alone ([#2](https://github.com/kaorinstar/driveshot/issues/2))
+
+**Settled.** Google Drive is implemented first and on its own. OneDrive and Dropbox follow
+afterwards, as #8.
 
 Google Drive, OneDrive and Dropbox all differ in how they authenticate, how they upload, and how
 they publish a link. `Provider` names all three from the start, because the identifier of a
 provider is written into every stored record and a record written today has to remain readable
-later. Which of them is implemented first, and whether the other two follow immediately, is open.
+later. That part was never in question; how many of them actually work in the first release was.
 
-Doing one first is the cheaper path and gives a working application sooner. Doing all three at
-once forces the abstraction to be right rather than shaped around whichever provider came first.
+What decided it is that Google Drive is the drive this project's author uses. A provider nobody
+here has an account on is a provider that cannot be tested, and an upload that has never been run
+against a real account is not an upload anyone should trust.
+
+**What it costs, written down because it is a real cost rather than a theoretical one:** the
+abstraction will be shaped around Google Drive, because there is nothing else pushing against it.
+When OneDrive and Dropbox arrive, that shape is expected to be wrong in places, and reshaping it
+is part of #8 rather than a sign that something went wrong here. The alternative was to build
+three at once and ship nothing until the third one worked.
 
 ### Where deletion runs ([#3](https://github.com/kaorinstar/driveshot/issues/3))
+
+**Still open.**
 
 Retention is the feature that makes a public share link acceptable, so the question is how
 reliably it can run.

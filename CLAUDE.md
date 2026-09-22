@@ -276,19 +276,23 @@ no caller has to remember to check.
 
 ## Not yet implemented
 
-In the order planned, and subject to the two open decisions in `docs/architecture.md`:
+In the order planned, and subject to the one open decision in `docs/architecture.md`:
 
 1. ~~Tray icon and a global hotkey (#4)~~ — done.
 2. ~~Region capture, saved locally, with no upload (#5)~~ — done.
-3. One cloud drive end to end: OAuth, upload, share link on the clipboard (#6).
+3. Google Drive end to end: OAuth, upload, share link on the clipboard (#6).
 4. The record index on disk, and deletion when a retention runs out (#7).
-5. The remaining two cloud drives (#8).
+5. OneDrive and Dropbox (#8).
 6. Settings that persist (#9).
 
-**Two decisions are open and are not an assistant's to settle by implementing them**: how many
-cloud drives to support first (#2), and whether deletion has to run when the user's machine is
-off (#3). Both are written out in `docs/architecture.md` with what each choice costs, and each
-issue says what decides it. If a task requires one of them, say so and ask.
+**Google Drive comes first, and on its own (#2, settled).** The abstraction will be shaped
+around it, because there is nothing else pushing against it; reshaping it when OneDrive and
+Dropbox arrive is part of #8 rather than a sign that something went wrong.
+
+**One decision is still open, and it is not an assistant's to settle by implementing it**:
+whether deletion has to run when the user's machine is off (#3). It is written out in
+`docs/architecture.md` with what each choice costs, and the issue says what decides it. If a task
+requires it, say so and ask.
 
 Every issue is open at the time of writing, and each names what it depends on. Read the issue
 before starting the work: it carries the constraints that are not in the code, such as why the
@@ -424,6 +428,18 @@ worked there** — so the physical placement in `open_overlay` and the matching 
 What it found instead is that **the overlay now takes about a second to appear** (#23). The white
 frame was that same second, spent with a window on the screen rather than without one; waiting for
 the page removed the flash and left the wait visible.
+
+The fifth checked that second, after the overlays stopped being built per capture and started
+being built at startup and kept. **It is gone**: the report was that the overlay is much faster.
+That is the only part of #29 a person could judge; everything else about it - the reconciliation
+against `available_monitors`, the deadline for an overlay built mid-capture - is untested until a
+monitor is plugged in during a capture.
+
+Between the fourth check and the fifth, **the repository was published** (#10). Actions stopped
+running for a day first: the included minutes for a private repository ran out, and every job
+died in two seconds without a runner. Publishing fixed that as a side effect of the reason it was
+done. CodeQL arrived with it, `main` gained a ruleset that requires a pull request and the five
+checks, and nothing can be pushed to `main` directly any more.
 
 **macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
 is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as
