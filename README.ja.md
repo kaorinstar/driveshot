@@ -51,10 +51,11 @@ C:\Users\<ユーザー名>\Pictures\Driveshot\driveshot-20260921-211731.png
 | 共有URLの発行 | 未着手 |
 | 期限による自動削除 | 未着手 |
 
-設計上の未決定事項が2点あります。最初に対応するクラウドドライブの数
-（[#2](https://github.com/kaorinstar/driveshot/issues/2)）と、パソコンの電源が切れている間も削除を
-実行する必要があるかどうか（[#3](https://github.com/kaorinstar/driveshot/issues/3)）です。
-それぞれの選択肢と負担は [docs/architecture.ja.md](docs/architecture.ja.md) に記載しています。
+**最初に対応する保存先はGoogleドライブです。** 単独で実装します
+（[#2](https://github.com/kaorinstar/driveshot/issues/2)）。OneDriveとDropboxはその後に対応します。
+設計上の未決定事項は1点です。パソコンの電源が切れている間も削除を実行する必要があるかどうか
+（[#3](https://github.com/kaorinstar/driveshot/issues/3)）です。それぞれの選択肢と負担は
+[docs/architecture.ja.md](docs/architecture.ja.md) に記載しています。
 
 ## 動作条件
 
@@ -203,13 +204,13 @@ Windowsが12分16秒、macOSが4分20秒。Windowsはキャッシュが効くと
 
 ## 今後の予定
 
-予定している順序です。前述の未決定事項2点の結論により変わる可能性があります。
+予定している順序です。前述の未決定事項1点の結論により変わる可能性があります。
 
 1. ~~タスクトレイへの常駐と、グローバルホットキー~~（[#4](https://github.com/kaorinstar/driveshot/issues/4)）— 完了。
 2. ~~画面の一部の取り込み。ローカル保存のみで、アップロードはしない~~（[#5](https://github.com/kaorinstar/driveshot/issues/5)）— 完了。
-3. クラウドドライブ1つの一連の流れ。OAuth認証、アップロード、共有URLのクリップボードへのコピー（[#6](https://github.com/kaorinstar/driveshot/issues/6)）。
+3. Googleドライブの一連の流れ。OAuth認証、アップロード、共有URLのクリップボードへのコピー（[#6](https://github.com/kaorinstar/driveshot/issues/6)）。
 4. アップロード記録の保存と、保存期間経過後の削除（[#7](https://github.com/kaorinstar/driveshot/issues/7)）。
-5. 残り2つのクラウドドライブへの対応（[#8](https://github.com/kaorinstar/driveshot/issues/8)）。
+5. OneDriveとDropboxへの対応（[#8](https://github.com/kaorinstar/driveshot/issues/8)）。
 6. 設定の保存。保存期間、ホットキー、保存先（[#9](https://github.com/kaorinstar/driveshot/issues/9)）。
 
 ## 開発に参加する場合
