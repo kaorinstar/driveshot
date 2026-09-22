@@ -425,6 +425,19 @@ What it found instead is that **the overlay now takes about a second to appear**
 frame was that same second, spent with a window on the screen rather than without one; waiting for
 the page removed the flash and left the wait visible.
 
+More runs by hand have happened since, all on Windows. One, on a build from before #29, found
+that **the saved image carried the overlay's dimming over every colour in it** (#34). A capture
+closed the overlays and then waited 120 ms on the main thread for the screen to clear;
+`tauri-runtime-wry` sends every close through the event loop, so that wait was what stopped the
+screen clearing.
+
+#29 hides the overlays instead of closing them, for the speed in #23, and **its own run confirmed
+the speed**. Hiding is carried out where it is asked for rather than queued, so it removed the
+cause of #34 as well, without setting out to. **A run on a build from `main` with #29 in it
+confirmed that: the saved image has the screen's own colours.** Nothing was written for #34 in the
+end; the pull request that had been opened for it was closed unmerged, because it was built on the
+overlays being closed.
+
 **macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
 is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as
 unverified until someone does, and say so rather than implying otherwise.
