@@ -216,8 +216,9 @@ Quitting is the tray menu's last entry, and nothing else exits the application.
 
 `src-tauri/Info.plist` sets `LSUIElement` so the bundle has no Dock icon, and `main.rs` asks for
 `ActivationPolicy::Accessory` at runtime. The plist covers the packaged application; the runtime
-call covers `tauri dev`, which never reads it. Neither has been tested — nobody has run the macOS
-build.
+call covers `tauri dev`, which never reads it. The plist has now been seen working: the packaged
+application put its icon in the menu bar and nothing in the Dock. The runtime call has not — that
+one needs somebody to run `tauri dev` on a Mac.
 
 ### Nothing asks a platform for a display's scale factor
 
@@ -228,8 +229,20 @@ divides by the scale factor) and a **physical** one on Windows (`dmPelsWidth`). 
 against either is broken on the other, and both look right at 100% where the two are equal.
 
 For the same reason `capture_region` is not used, and monitors are matched to what `xcap` captures
-by `Monitor::from_point` with a physical point inside them — that one means the same thing
-everywhere.
+by `Monitor::from_point` with a point inside them.
+
+**That point is not in the same coordinates on every platform, and saying it was stopped capture
+working on macOS altogether (#40).** `from_point` takes physical pixels only on Windows, where it
+passes them to `MonitorFromPoint`. On macOS it passes them to `CGGetDisplaysWithPoint`, whose
+global display space is in points, and on Linux `xcap` multiplies the point by the scale factor
+before comparing it — points again. A display at 200% therefore has its centre in pixels sitting
+on its bottom right corner in points, outside every monitor, and `xcap` answers `Monitor not
+found`. `capture::lookup_point` is the one place that chooses, and `driveshot_core::MonitorRect`
+does the arithmetic, where it is tested.
+
+The rule the paragraph above states is unaffected: a **crop** still measures its scale from the
+captured image. It is the monitor lookup, and only that, which has to know which space it is
+speaking in.
 
 ### `shadow(false)` on the capture overlay
 
@@ -276,6 +289,44 @@ image from its releases page, so nothing planned is lost, but do not turn the fl
 private API" without replacing the overlay: the alternative is showing a captured image in an
 opaque window instead of dimming a transparent one, which is a different design, not a smaller
 one. #18 has that design written out, with what it would cost.
+
+### `#[tauri::command(async)]` on `finish_capture` and nothing else
+
+Every other command in `main.rs` is a plain `#[tauri::command]`, and this one looks like an
+oversight either way round. It is not, and the difference is the whole of #49.
+
+Tauri runs a command with no `async` — neither on the function nor in the attribute — inline on
+the thread that handles the message, which is the main thread. A capture hides the overlays and
+then waits 120 ms for the screen to clear. On the main thread that wait is worse than useless: a
+hidden window stops being drawn only once that thread goes round its run loop, so the capture
+spends the wait preventing the thing it is waiting for, and photographs its own dimming. Windows
+does not show it, because there the desktop is composited by another process.
+
+The attribute moves the body to the async runtime; the function stays synchronous. What genuinely
+belongs to the main thread — hiding a window, reading `available_monitors` — goes back to it
+through `capture::on_main`. **Never call that from the main thread**: it would queue the work
+behind itself and wait for it.
+
+### `"signingIdentity": "-"` in `tauri.conf.json`
+
+It looks like a placeholder left behind, or like an attempt at the code signing #12 is about. It is
+neither. `-` is `codesign`'s own name for an ad-hoc signature: one that proves nothing about who
+built the application, and that costs nothing because there is no certificate behind it.
+
+Without it, `tauri-bundler` skips signing altogether, and **the macOS build cannot be started at
+all** (#37). `--target universal-apple-darwin` merges the Intel and Apple Silicon binaries with
+`lipo`, and a binary produced that way has to be signed afterwards; nothing did, so macOS killed
+the process at launch on both architectures. Allowing the application through System Settings did
+not help, because the problem was never Gatekeeper's verdict — an unsigned bundle does not run.
+
+The setting lives in the configuration rather than in a workflow on purpose. A local
+`npm run tauri build` has to produce a runnable application too, and `build.yml` and `release.yml`
+are meant to stay identical.
+
+**This is not a substitute for #12.** An ad-hoc signature is not a Developer ID, and nothing here
+is notarized, so macOS still refuses the application on first run until the user allows it through
+System Settings → Privacy & Security. What changed is that allowing it now works. When a
+certificate is bought, this value is what the real identity replaces.
 
 ### `NonZeroU32` in `Retention::Days`
 
@@ -432,7 +483,9 @@ pixels right of the monitor's left edge.
 The fourth checked both fixes, and **both hold: no white frame, and the dimming reaches the edges
 of the screen**. That run also tried **more than one monitor for the first time, and capture
 worked there** — so the physical placement in `open_overlay` and the matching by
-`Monitor::from_point` are right on the desktop they were written for, rather than only on paper.
+`Monitor::from_point` are right on the desktop they were written for. On Windows, at least: the
+matching turned out to be wrong everywhere else (#40), and a desktop at 100% scaling cannot tell
+the difference.
 
 What it found instead is that **the overlay now takes about a second to appear** (#23). The white
 frame was that same second, spent with a window on the screen rather than without one; waiting for
@@ -463,9 +516,30 @@ it correctly. That is what drawing each size at its own resolution buys: `npx ta
 resampled one large image down to 16 pixels, which is what the tray asks for at 100% scaling, and
 a mark that detailed does not survive it.
 
-**macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
-is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as
-unverified until someone does, and say so rather than implying otherwise.
+**macOS has now been run, once, and it did not start.** The disk image from a manual `release.yml`
+run was opened on a MacBook Pro 13" (2020, Intel Core i7) on macOS Tahoe 26.7. The application was
+killed at launch, because the bundle carried no code signature at all (#37) — `lipo` leaves a
+universal binary unsigned and nothing signed it afterwards. Signing the installed copy by hand with
+`codesign --force --sign -` made it start, and it printed `Driveshot holds CmdOrCtrl+Shift+D.`, so
+the bundle itself is sound and the hotkey registers on macOS. **The icon then appeared in the menu
+bar**, which is the first thing about the application's appearance on macOS that anyone has seen:
+the tray from #4 and `LSUIElement` both do what they were written to do there.
+
+The fix in #37 was then built and **the application started from the disk image with no
+`codesign` run by hand**, its icon in the menu bar. Capture, tried for the first time on macOS,
+**failed before it reached the screen**: `Monitor not found` (#40), from the monitor lookup asking
+`xcap` about a point in pixels on a display whose points are half that. macOS never asked for the
+Screen Recording permission, because nothing had yet tried to read the screen.
+
+A build with #40 in it **captured, and the saved rectangle was the one that was drawn** — so the
+scale arithmetic holds on a Retina display, not only in its tests. Two faults came with it, both
+in what the overlay does rather than where: **the saved image carried the dimming** (#49, which is
+#34 on the other platform, and for a different reason), and **the menu bar's status icons are not
+dimmed** because they sit at a window level above the overlay (#50).
+
+**Still unverified on macOS**: the tray menu, the settings window, and the Screen Recording
+permission — nobody has reported whether macOS asked for it. Treat those as untested, and say so
+rather than implying otherwise.
 
 ## Choosing a model for subagents
 

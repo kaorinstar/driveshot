@@ -131,7 +131,13 @@ fn start_capture(app: &AppHandle) {
 ///
 /// The overlay calls this once, on the mouse button coming up. `monitor` is the index the overlay
 /// was opened with, which is the monitor the selection is in.
-#[tauri::command]
+///
+/// `async` is what keeps this off the main thread. Without it Tauri runs a command inline on the
+/// thread handling the message, which is the one that has to go round its run loop before a
+/// hidden overlay stops being drawn - so a capture waiting there for the screen to clear waits
+/// for something it is itself preventing, and photographs its own dimming (#49). The body stays
+/// synchronous; Tauri runs it on the async runtime all the same.
+#[tauri::command(async)]
 fn finish_capture(app: AppHandle, monitor: usize, selection: Selection) -> Result<String, String> {
     match capture::finish(&app, monitor, selection) {
         Ok(path) => {

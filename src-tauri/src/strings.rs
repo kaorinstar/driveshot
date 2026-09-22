@@ -72,3 +72,12 @@ pub fn capture_not_saved(path: &str, reason: &str) -> String {
 pub fn capture_no_monitor_list(reason: &str) -> String {
     format!("Driveshot could not ask which monitors are attached: {reason}")
 }
+
+/// Said when the thread that owns the windows could not be reached.
+///
+/// A capture no longer runs on that thread, so it has to ask it to hide the overlays and say
+/// where the monitors are. There is nothing the user can do about this one; it is said rather
+/// than swallowed because a capture that produced no file has to say why.
+pub fn capture_main_thread_unreachable(reason: &str) -> String {
+    format!("Driveshot could not reach the part of itself that owns the windows: {reason}")
+}

@@ -33,16 +33,21 @@
 //!   generates are in. Physical divided by the scale factor.
 //! - **Pixels within one captured image**, which is what a crop needs.
 //!
-//! Two rules keep it straight. Monitors are matched to what `xcap` captures by a physical point
-//! inside them - `Monitor::from_point` is physical on every platform, while `Monitor::width` is
-//! logical on Linux and physical on Windows, so the point is the only part that can be relied on.
-//! And the conversion from the user's rectangle to pixels is done by `driveshot_core::pixels_for`,
-//! which measures the scale from the captured image rather than asking any platform for it.
+//! Two rules keep it straight. Monitors are matched to what `xcap` captures by a point inside
+//! them, in whichever of the two spaces that platform's `xcap` backend reads - see
+//! [`lookup_point`], which is where getting it wrong stopped capture working on macOS entirely
+//! (#40). And the conversion from the user's rectangle to pixels is done by
+//! `driveshot_core::pixels_for`, which measures the scale from the captured image rather than
+//! asking any platform for it.
+//!
+//! Everything else here is arithmetic on a monitor's rectangle, and it is
+//! `driveshot_core::MonitorRect` doing it rather than this file. That is deliberate: the bug
+//! above was a conversion written where nothing could test it.
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use driveshot_core::{LogicalSize, PixelSize, Selection};
+use driveshot_core::{MonitorRect, PixelSize, Selection};
 use tauri::utils::config::Color;
 use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder,
@@ -69,40 +74,23 @@ const CAPTURE_BEGIN: &str = "capture-begin";
 #[derive(Default)]
 pub struct Capturing(AtomicBool);
 
-/// Where a monitor is and how large, in the one coordinate system that means the same thing
-/// everywhere.
-#[derive(Debug, Clone, Copy)]
-struct MonitorGeometry {
-    /// Left edge, in physical pixels, in the desktop's coordinates.
-    x: i32,
-    /// Top edge, in physical pixels, in the desktop's coordinates.
-    y: i32,
-    /// Width in physical pixels.
-    width: u32,
-    /// Height in physical pixels.
-    height: u32,
-    /// Physical pixels per point.
-    scale: f64,
-}
-
-impl MonitorGeometry {
-    /// A point inside this monitor, in physical pixels, for matching it against what `xcap` sees.
-    ///
-    /// The centre rather than a corner: a corner is shared with the monitor next to it, and which
-    /// of the two owns it is exactly the sort of thing platforms disagree about.
-    fn centre(self) -> (i32, i32) {
-        (
-            self.x.saturating_add_unsigned(self.width / 2),
-            self.y.saturating_add_unsigned(self.height / 2),
-        )
-    }
-
-    /// The size of an overlay covering this monitor, in the points its pointer events use.
-    fn overlay_size(self) -> LogicalSize {
-        LogicalSize {
-            width: f64::from(self.width) / self.scale,
-            height: f64::from(self.height) / self.scale,
-        }
+/// A point inside `monitor`, in the coordinates `xcap::Monitor::from_point` reads.
+///
+/// Which is not one coordinate system but two, and that is the whole difficulty. `from_point`
+/// takes physical pixels only on Windows, where it passes them to `MonitorFromPoint`. On macOS it
+/// passes them to `CGGetDisplaysWithPoint`, whose global display space is in points; on Linux
+/// `xcap` multiplies the point by the scale factor before comparing it, which asks for points
+/// just the same.
+///
+/// A display at 200% is what this costs when it is wrong. Its centre in pixels is its bottom
+/// right corner in points, so nothing contains the point, `xcap` answers `Monitor not found`, and
+/// no capture on that machine ever reaches the screen (#40). At 100% the two are equal, which is
+/// why Windows never showed it.
+fn lookup_point(monitor: MonitorRect) -> (i32, i32) {
+    if cfg!(target_os = "windows") {
+        monitor.centre_in_pixels()
+    } else {
+        monitor.centre_in_points()
     }
 }
 
@@ -185,19 +173,23 @@ pub fn finish(
     monitor_index: usize,
     selection: Selection,
 ) -> Result<PathBuf, String> {
-    hide_all(app);
     stop_capturing(app);
 
-    let monitors = monitors(app)?;
-    let geometry = *monitors
-        .get(monitor_index)
-        .ok_or_else(|| strings::CAPTURE_MONITOR_GONE.to_owned())?;
+    // Hiding the overlays and asking where the monitors are both belong to the thread that owns
+    // the windows. This one is not it - see the note on `on_main` for why that matters.
+    let found = on_main(app, move |app| {
+        hide_all(app);
+        monitors(app).map(|monitors| monitors.get(monitor_index).copied())
+    })?;
+    let geometry = found?.ok_or_else(|| strings::CAPTURE_MONITOR_GONE.to_owned())?;
 
     // The overlays are windows like any other, and a window takes a moment to stop being on the
-    // screen. Capturing immediately catches the overlay in the shot.
+    // screen. Capturing immediately catches the overlay in the shot. This wait is only worth
+    // anything because it happens here rather than on the main thread, which is the thread that
+    // has to run for the screen to be repainted without them (#49).
     std::thread::sleep(std::time::Duration::from_millis(120));
 
-    let (x, y) = geometry.centre();
+    let (x, y) = lookup_point(geometry);
     let monitor = xcap::Monitor::from_point(x, y)
         .map_err(|error| strings::capture_failed(&error.to_string()))?;
 
@@ -209,7 +201,7 @@ pub fn finish(
         width: image.width(),
         height: image.height(),
     };
-    let rect = driveshot_core::pixels_for(selection, geometry.overlay_size(), size)
+    let rect = driveshot_core::pixels_for(selection, geometry.size_in_points(), size)
         .ok_or_else(|| strings::CAPTURE_NOTHING_SELECTED.to_owned())?;
 
     let cropped =
@@ -226,6 +218,36 @@ pub fn finish(
     })?;
 
     Ok(path)
+}
+
+/// Runs `work` on the thread that owns the windows, and waits for its answer.
+///
+/// A capture runs on the async runtime rather than on the main thread, which is what makes the
+/// wait for the screen to clear mean anything: the main thread has to go round its run loop for a
+/// hidden window to stop being drawn, and it cannot do that while a capture is asleep on it
+/// (#49). Everything that genuinely belongs to that thread - hiding a window, asking which
+/// monitors are attached - comes back to it through here.
+///
+/// **Never call this from the main thread.** It would queue `work` behind itself and then wait
+/// for it, which is a deadlock rather than a slow capture. Nothing does: `finish_capture` is
+/// `#[tauri::command(async)]`, and the tray menu and the hotkey reach `begin`, not `finish`.
+fn on_main<T, F>(app: &AppHandle, work: F) -> Result<T, String>
+where
+    F: FnOnce(&AppHandle) -> T + Send + 'static,
+    T: Send + 'static,
+{
+    let (answer, wait) = std::sync::mpsc::channel();
+    let handle = app.clone();
+
+    app.run_on_main_thread(move || {
+        // Nothing is listening only if the capture has already given up, which it cannot: it is
+        // blocked on `recv` below until this arrives.
+        let _ = answer.send(work(&handle));
+    })
+    .map_err(|error| strings::capture_main_thread_unreachable(&error.to_string()))?;
+
+    wait.recv()
+        .map_err(|error| strings::capture_main_thread_unreachable(&error.to_string()))
 }
 
 /// Where the next shot goes: a file named after the moment it was taken, in a folder of Driveshot's
@@ -245,7 +267,7 @@ fn shot_path() -> Result<PathBuf, String> {
 }
 
 /// Every monitor, as Tauri describes it.
-fn monitors(app: &AppHandle) -> Result<Vec<MonitorGeometry>, String> {
+fn monitors(app: &AppHandle) -> Result<Vec<MonitorRect>, String> {
     let monitors = app
         .available_monitors()
         .map_err(|error| strings::capture_no_monitor_list(&error.to_string()))?;
@@ -255,7 +277,7 @@ fn monitors(app: &AppHandle) -> Result<Vec<MonitorGeometry>, String> {
         .map(|monitor| {
             let position = monitor.position();
             let size = monitor.size();
-            MonitorGeometry {
+            MonitorRect {
                 x: position.x,
                 y: position.y,
                 width: size.width,
@@ -334,7 +356,7 @@ fn ensure_overlays(app: &AppHandle) -> Result<Vec<bool>, String> {
 /// Builds the overlay for one monitor if it is not there, and puts it over that monitor.
 ///
 /// Returns whether it had to build it.
-fn place_overlay(app: &AppHandle, index: usize, monitor: MonitorGeometry) -> tauri::Result<bool> {
+fn place_overlay(app: &AppHandle, index: usize, monitor: MonitorRect) -> tauri::Result<bool> {
     let label = overlay_label(index);
 
     let (window, fresh) = match app.get_webview_window(&label) {
@@ -353,9 +375,11 @@ fn place_overlay(app: &AppHandle, index: usize, monitor: MonitorGeometry) -> tau
 fn build_overlay(
     app: &AppHandle,
     index: usize,
-    monitor: MonitorGeometry,
+    monitor: MonitorRect,
 ) -> tauri::Result<tauri::WebviewWindow> {
     let url = WebviewUrl::App(format!("{OVERLAY_PAGE}?monitor={index}").into());
+    let origin = monitor.origin_in_points();
+    let size = monitor.size_in_points();
 
     WebviewWindowBuilder::new(app, overlay_label(index), url)
         .title("Driveshot")
@@ -363,14 +387,8 @@ fn build_overlay(
         // scale factor the window is created under - which is not necessarily the scale factor of
         // the monitor it is being sent to. So this is only where the window is born; the physical
         // rectangle it is meant to cover is set by `place_overlay` (#22).
-        .position(
-            f64::from(monitor.x) / monitor.scale,
-            f64::from(monitor.y) / monitor.scale,
-        )
-        .inner_size(
-            f64::from(monitor.width) / monitor.scale,
-            f64::from(monitor.height) / monitor.scale,
-        )
+        .position(origin.0, origin.1)
+        .inner_size(size.width, size.height)
         .decorations(false)
         // Windows gives an undecorated window its shadow by leaving the resize frame around it,
         // and then pulls the page inside in by that frame's width - eight pixels at 100%, ten at

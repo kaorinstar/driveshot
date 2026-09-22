@@ -29,7 +29,7 @@ mod record;
 mod retention;
 
 pub use error::{Error, Result};
-pub use geometry::{pixels_for, LogicalSize, PixelRect, PixelSize, Selection};
+pub use geometry::{pixels_for, LogicalSize, MonitorRect, PixelRect, PixelSize, Selection};
 pub use provider::Provider;
 pub use record::{ShotIndex, ShotRecord};
 pub use retention::Retention;
