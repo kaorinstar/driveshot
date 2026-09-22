@@ -44,6 +44,9 @@ in [README.md](README.md).
   large image, which is what left the tray icon looking soft. Below 40 pixels — the tray, and the
   small entries in the taskbar and the file list — the frame is dropped and the cloud is filled
   in, because three white strokes that close together cannot be told apart at that size.
+- **Clicking the tray icon now takes a shot** instead of opening the settings window. It does
+  the same as the capture key, so the shot you want is one click away rather than a menu away.
+  The settings window is still on the menu that the right button opens.
 - **The macOS application now starts.** It was killed the moment it was opened, because what
   Driveshot ships for macOS carried no signature at all. It is still not signed by a certificate
   Apple recognises, so the first time you open it macOS says it cannot verify it: allow it through
