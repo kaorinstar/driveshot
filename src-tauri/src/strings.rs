@@ -7,7 +7,7 @@
 //! English alone today, as in the window. It is written this way from the start because adding a
 //! second language then costs one more table and nothing else.
 
-/// The tray menu entry that takes a shot. It does nothing yet; capture is #5.
+/// The tray menu entry that takes a shot.
 pub const TRAY_CAPTURE: &str = "Capture";
 
 /// The tray menu entry that opens the settings window.
