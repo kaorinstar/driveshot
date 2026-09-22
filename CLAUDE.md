@@ -395,7 +395,9 @@ place (#7).
   because macOS answers a capture made without it with the desktop picture rather than an error
   (#54). **The permission has to be granted again for every build installed**, because macOS
   identifies an application by its signature and each build is signed ad-hoc with a different one.
-  A Developer ID (#12) is what would stop that.
+  Switching the old entry on does not do it: it has to be removed first, with the `-` button or
+  `tccutil reset ScreenCapture com.kaorinstar.driveshot`, and asked for again. A Developer ID
+  (#12) is what would stop that.
 - The icon is drawn by `tools/make-icon.py` rather than by a designer.
 - The name has not been checked against a trademark database, only searched for on GitHub and in
   the application stores (#11).
@@ -567,9 +569,20 @@ in what the overlay does rather than where: **the saved image carried the dimmin
 #34 on the other platform, and for a different reason), and **the menu bar's status icons are not
 dimmed** because they sit at a window level above the overlay (#50).
 
-**Still unverified on macOS**: the tray menu, the settings window, and the Screen Recording
-permission — nobody has reported whether macOS asked for it. Treat those as untested, and say so
-rather than implying otherwise.
+A build with #49 and #54 in it then **captured what was on the screen**, and the run answered the
+Screen Recording permission at last. It also found how that permission behaves for an application
+signed the way this one is. Switching Driveshot on in System Settings did nothing: the entry in
+that list belonged to an **earlier build**, and macOS matches a permission to a code signature.
+Every build is signed ad-hoc with a different one, so a granted permission does not survive
+replacing the application, and the stale entry cannot simply be switched on either.
+
+What worked was `tccutil reset ScreenCapture com.kaorinstar.driveshot`, removing the entry, and
+letting Driveshot ask again. **Tell anyone installing a new build to do that** rather than to
+toggle the switch, until #12 gives macOS a signature it can recognise across builds.
+
+**Still unverified on macOS**: the tray menu and the settings window's own contents. Treat those
+as untested, and say so rather than implying otherwise. #50, the menu bar's status icons sitting
+above the overlay, is open and is a decision rather than a fault.
 
 ## Choosing a model for subagents
 

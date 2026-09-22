@@ -75,10 +75,14 @@ pub fn capture_no_monitor_list(reason: &str) -> String {
 
 /// Said when macOS has not been told that Driveshot may read the screen.
 ///
+/// It says to remove an entry that is already there rather than to switch it on, because
+/// switching it on is what does not work. macOS matches a permission to a code signature; every
+/// build of Driveshot carries a different ad-hoc one, so an entry left over from the last build
+/// names an application this one is not, and no amount of toggling it changes that. Removing it
+/// and letting Driveshot ask again is what works (#12, #54).
+///
 /// It names the restart because macOS requires one: granting the permission does not reach a
-/// process that is already running. It names the signature because that is why a permission
-/// granted last week is gone this week - every build carries a different ad-hoc signature, and
-/// macOS identifies an application by that (#12, #54).
+/// process that is already running.
 ///
 /// The only string here that belongs to one platform. No other system asks for anything before a
 /// screen may be read, so on Windows this sentence is not merely unused but untrue, and it is not
@@ -86,11 +90,13 @@ pub fn capture_no_monitor_list(reason: &str) -> String {
 #[cfg(target_os = "macos")]
 pub const CAPTURE_NO_SCREEN_PERMISSION: &str = concat!(
     "macOS has not given Driveshot permission to record the screen, so there is nothing it can ",
-    "capture. Open System Settings, then Privacy & Security, then Screen Recording, and switch ",
-    "Driveshot on - adding it with the + button if it is not listed. Then quit Driveshot from the ",
-    "menu bar and start it again: macOS does not hand the permission to an application that is ",
-    "already running. A new version of Driveshot has to be allowed again, because it is not ",
-    "signed with a certificate that would let macOS recognise it as the same application.",
+    "capture. Open System Settings, then Privacy & Security, then Screen Recording. ",
+    "If Driveshot is already in that list, select it and remove it with the - button: after a new ",
+    "version is installed that entry belongs to the old one, and switching it on will not help. ",
+    "Then quit Driveshot from the menu bar, start it again, and take a shot - it will ask, and ",
+    "this time the answer will be about the version you have. ",
+    "Every new version has to be allowed again, because Driveshot is not signed with a ",
+    "certificate that would let macOS recognise it as the same application.",
 );
 
 /// Said when the thread that owns the windows could not be reached.
