@@ -159,9 +159,16 @@ Full details are in `docs/architecture.md`. The rules that matter most:
 
 - Line endings are LF, except `.bat`, `.cmd` and `.ps1`, which use CRLF. This is enforced by
   `.gitattributes`.
+- **A change starts from an issue.** Write one before the code. It carries what never reaches the
+  diff — why a decision went the way it did, what was ruled out, and what a human has to check on a
+  real machine — and it is what the branch name and the pull request point back to. Finding no
+  issue for a task is not permission to begin without one; it means the issue is the first thing to
+  write.
 - Branch names are `<type>/<issue number>-<short description>`, for example `feat/3-region-capture`,
   `fix/18-retention-boundary`, `ci/7-split-workflow`, `docs/2-architecture`. The types are `feat`,
-  `fix`, `docs`, `ci` and `chore`. Drop the issue number when the work has no issue.
+  `fix`, `docs`, `ci` and `chore`. The number is dropped only where there is genuinely nothing for
+  an issue to say — a typo, a comment, a file moved. A branch without one is otherwise a sign that
+  the issue was skipped, not a second ordinary way of naming a branch.
   A Claude Code session is assigned a `claude/...` branch by default. **That name is not part of
   this convention** — it describes the session rather than the change. Point it out and move the
   work to a branch that follows the convention before pushing.
@@ -290,6 +297,25 @@ private API" without replacing the overlay: the alternative is showing a capture
 opaque window instead of dimming a transparent one, which is a different design, not a smaller
 one. #18 has that design written out, with what it would cost.
 
+### Asking macOS for the screen before capturing, rather than after failing
+
+`capture::screen_recording_allowed` looks like a courtesy - check a permission, give a nicer
+message than the error would have been. There is no error to give a nicer message than, and that
+is the point.
+
+Without the Screen Recording permission, `CGWindowListCreateImage` - which is what `xcap` captures
+with on macOS - does not fail. It returns the desktop picture and the menu bar, with every window
+left out. Driveshot would save a valid photograph of the wrong thing and report the shot as taken
+(#54). Every other failure in `capture.rs` is said out loud; this one could not be, because
+nothing knew it had happened.
+
+`CGRequestScreenCaptureAccess` is also the only thing that shows the system prompt, once, the
+first time an application asks. Nothing asked before, which is why nobody had ever seen it.
+
+Both calls come from `objc2-core-graphics`, which `xcap` already depends on, and both are declared
+safe - so this needs no `unsafe` and `#![forbid(unsafe_code)]` is untouched. The `CGWindow`
+feature is named in `Cargo.toml` rather than relied on from `xcap`.
+
 ### `#[tauri::command(async)]` on `finish_capture` and nothing else
 
 Every other command in `main.rs` is a plain `#[tauri::command]`, and this one looks like an
@@ -364,8 +390,14 @@ place (#7).
 - Nothing is code-signed, on either platform. SmartScreen warns on Windows; macOS refuses to open
   the application until it is allowed through System Settings (#12).
 - Retention only runs while Driveshot does. This is one of the open decisions above (#3).
-- macOS screen capture will need the "Screen Recording" permission (#5). There is no way around it
-  and Driveshot will not try to find one.
+- macOS screen capture needs the "Screen Recording" permission. There is no way around it and
+  Driveshot will not try to find one; what it does is ask for it and refuse to capture without it,
+  because macOS answers a capture made without it with the desktop picture rather than an error
+  (#54). **The permission has to be granted again for every build installed**, because macOS
+  identifies an application by its signature and each build is signed ad-hoc with a different one.
+  Switching the old entry on does not do it: it has to be removed first, with the `-` button or
+  `tccutil reset ScreenCapture com.kaorinstar.driveshot`, and asked for again. A Developer ID
+  (#12) is what would stop that.
 - The icon is drawn by `tools/make-icon.py` rather than by a designer.
 - The name has not been checked against a trademark database, only searched for on GitHub and in
   the application stores (#11).
@@ -537,9 +569,20 @@ in what the overlay does rather than where: **the saved image carried the dimmin
 #34 on the other platform, and for a different reason), and **the menu bar's status icons are not
 dimmed** because they sit at a window level above the overlay (#50).
 
-**Still unverified on macOS**: the tray menu, the settings window, and the Screen Recording
-permission — nobody has reported whether macOS asked for it. Treat those as untested, and say so
-rather than implying otherwise.
+A build with #49 and #54 in it then **captured what was on the screen**, and the run answered the
+Screen Recording permission at last. It also found how that permission behaves for an application
+signed the way this one is. Switching Driveshot on in System Settings did nothing: the entry in
+that list belonged to an **earlier build**, and macOS matches a permission to a code signature.
+Every build is signed ad-hoc with a different one, so a granted permission does not survive
+replacing the application, and the stale entry cannot simply be switched on either.
+
+What worked was `tccutil reset ScreenCapture com.kaorinstar.driveshot`, removing the entry, and
+letting Driveshot ask again. **Tell anyone installing a new build to do that** rather than to
+toggle the switch, until #12 gives macOS a signature it can recognise across builds.
+
+**Still unverified on macOS**: the tray menu and the settings window's own contents. Treat those
+as untested, and say so rather than implying otherwise. #50, the menu bar's status icons sitting
+above the overlay, is open and is a decision rather than a fault.
 
 ## Choosing a model for subagents
 

@@ -46,3 +46,18 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-opener = "2"
 xcap = "0.9.8"
 dirs = "7.0.0"
+
+# Asking macOS whether Driveshot may read the screen, and asking the user for it the first time.
+# Without the Screen Recording permission, the capture `xcap` makes does not fail - it returns the
+# desktop picture and the menu bar, with every window left out - so a shot of the wrong thing is
+# saved and nothing says so (#54).
+#
+# `xcap` already depends on this crate, so it is not a new dependency in the tree, only a direct
+# one. Both calls it is used for are declared safe, so `#![forbid(unsafe_code)]` stays as it is.
+#
+# The CGWindow feature is named rather than left to the default set, which does not include it.
+# `xcap` turns it on for its own capture and Cargo adds features together, so it would compile
+# without this - on the strength of what a dependency happens to ask for, which is not something
+# to build on.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-graphics = { version = "0.3.2", features = ["CGWindow"] }

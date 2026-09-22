@@ -57,5 +57,8 @@ in [README.md](README.md).
 - **Shots taken on a Mac no longer carry the dimming.** The whole image used to come out darkened,
   because the screen was photographed before the shading had left it. Driveshot also no longer
   freezes for a moment when a shot is taken.
+- **A shot on a Mac no longer comes out as a picture of the desktop.** macOS has to be asked
+  before an application may read the screen. Driveshot now asks, and says what to do if the
+  answer is no, rather than quietly saving your wallpaper in place of what you selected.
 - **Uploading, sharing and deleting are still not built.** A shot stays on your own machine. The
   roadmap in [README.md](README.md) says in which order the rest arrives.
