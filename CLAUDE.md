@@ -438,6 +438,12 @@ confirmed that: the saved image has the screen's own colours.** Nothing was writ
 end; the pull request that had been opened for it was closed unmerged, because it was built on the
 overlays being closed.
 
+A later run, on a build from `main` with #24 in it, checked the new icon. **The tray icon reads
+as a cloud rather than the grey smudge the old one left**, and the taskbar and the installer carry
+it correctly. That is what drawing each size at its own resolution buys: `npx tauri icon`
+resampled one large image down to 16 pixels, which is what the tray asks for at 100% scaling, and
+a mark that detailed does not survive it.
+
 **macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
 is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as
 unverified until someone does, and say so rather than implying otherwise.
