@@ -345,8 +345,39 @@ place (#7).
   success without closing it.
 
 `build.yml` and `release.yml` carry the same build steps on purpose, so each can be read straight
-through. **Change them together.** The one deliberate difference is the version: a release build
-writes the tag into `src-tauri/Cargo.toml` first.
+through. **Change them together.** Two differences are deliberate:
+
+1. **The version.** A release build writes the tag into `src-tauri/Cargo.toml` first.
+2. **Signing.** `release.yml` puts a certificate on the runner before packaging, when the
+   `MACOS_CERTIFICATE` secret is set (#58). `build.yml` packages nothing, so there is no bundle
+   there to sign and a keychain imported and never used would only be noise.
+
+### The certificate is imported by the workflow, not handed to the bundler
+
+`tauri-bundler` reads a certificate from `APPLE_CERTIFICATE` and `APPLE_CERTIFICATE_PASSWORD`, and
+`release.yml` uses neither. The secrets are called `MACOS_CERTIFICATE`,
+`MACOS_CERTIFICATE_PASSWORD` and `MACOS_SIGNING_IDENTITY` partly so that nothing is picked up by
+that path by accident.
+
+The reason is that the path does not work for a certificate Driveshot signed itself.
+`tauri-macos-sign` imports the certificate and then looks for a signing identity **by name**,
+searching only for `iOS Distribution:`, `Apple Distribution:`, `Developer ID Application:`,
+`Mac App Distribution:`, `Apple Development:`, `iOS App Development:` and `Mac Development:`, and
+requiring an Organizational Unit on the certificate. Anything else is not found, and the build
+fails with `failed to resolve signing identity`.
+
+So the workflow imports the certificate into a keychain of its own and passes the bundler only
+`APPLE_SIGNING_IDENTITY`. That reaches `Keychain::with_signing_identity`, which runs
+`codesign --force -s "<name>"` and asks nothing about who issued the certificate. `tauri-cli`
+reads that variable in preference to `tauri.conf.json`, so the `"signingIdentity": "-"` above
+stays untouched and is still what a local build, and any run without the secret, uses.
+
+The step also trusts the certificate for code signing on the runner. `codesign` will not build a
+chain to a root nothing trusts, and a self-signed certificate is exactly that. The runner is
+thrown away at the end of the job.
+
+**What this is for is a measurement, not a feature** (#58): whether macOS then keeps the Screen
+Recording permission across an update. If it does not, this comes back out.
 
 ### Which platforms a run builds on
 

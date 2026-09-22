@@ -210,6 +210,76 @@ jobs:
       - name: Test the whole workspace
         run: cargo test --workspace
 
+      # Signing, when there is a certificate to sign with. Without one this does nothing and the
+      # bundler signs ad-hoc, exactly as it does today - `"signingIdentity": "-"` in
+      # tauri.conf.json is what a local build and any run without these secrets use (#37).
+      #
+      # The certificate is imported here rather than handed to the bundler through
+      # APPLE_CERTIFICATE, and the difference matters. `tauri-macos-sign` looks up an identity by
+      # name and searches only for Apple's own prefixes - "Developer ID Application:",
+      # "Apple Development:" and five more - so a certificate named anything else is not found and
+      # the build fails with `failed to resolve signing identity`. Naming the identity through
+      # APPLE_SIGNING_IDENTITY instead reaches the branch that runs `codesign -s <name>` and asks
+      # nothing about who issued it. `tauri-cli` reads that variable in preference to the
+      # configuration, so the `-` there is left alone (#58).
+      - name: Put the signing certificate on the runner
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$MACOS_CERTIFICATE" ]; then
+            echo "No signing certificate is configured, so the bundle will be signed ad-hoc."
+            exit 0
+          fi
+
+          if [ -z "$MACOS_SIGNING_IDENTITY" ]; then
+            echo "::error::MACOS_CERTIFICATE is set but MACOS_SIGNING_IDENTITY is not, so there is no name to sign with."
+            exit 1
+          fi
+
+          keychain="$RUNNER_TEMP/driveshot-signing.keychain-db"
+          keychain_password="$(openssl rand -base64 24)"
+          certificate="$RUNNER_TEMP/certificate.p12"
+
+          printf '%s' "$MACOS_CERTIFICATE" | base64 --decode >"$certificate"
+
+          security create-keychain -p "$keychain_password" "$keychain"
+          # Locked after six hours and on sleep, so a keychain cannot outlive the job that made it.
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
+            -k "$keychain_password" "$keychain" >/dev/null
+          security list-keychain -d user -s "$keychain" \
+            $(security list-keychain -d user | tr -d '" ')
+
+          # codesign refuses to build a chain to a root nothing trusts, and a certificate the
+          # project signed itself is exactly that. Trusting it for code signing covers this
+          # runner, which is thrown away at the end of the job.
+          openssl pkcs12 -in "$certificate" -clcerts -nokeys \
+            -passin pass:"$MACOS_CERTIFICATE_PASSWORD" -out "$RUNNER_TEMP/certificate.pem"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign \
+            -k /Library/Keychains/System.keychain "$RUNNER_TEMP/certificate.pem"
+
+          rm -f "$certificate" "$RUNNER_TEMP/certificate.pem"
+
+          # Said out loud now rather than as a signature nobody asked for: an identity that is not
+          # there would otherwise fail inside the bundler, where the reason is harder to read.
+          if ! security find-identity -p codesigning "$keychain" | grep -qF "$MACOS_SIGNING_IDENTITY"; then
+            echo "::error::The certificate was imported, but no code signing identity called '$MACOS_SIGNING_IDENTITY' is in it. What is in it:"
+            security find-identity -p codesigning "$keychain" || true
+            exit 1
+          fi
+
+          echo "APPLE_SIGNING_IDENTITY=$MACOS_SIGNING_IDENTITY" >>"$GITHUB_ENV"
+          echo "The bundle will be signed as '$MACOS_SIGNING_IDENTITY'."
+
       - name: Package the application
         shell: bash
         run: |
