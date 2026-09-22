@@ -44,5 +44,8 @@ in [README.md](README.md).
   large image, which is what left the tray icon looking soft. Below 40 pixels — the tray, and the
   small entries in the taskbar and the file list — the frame is dropped and the cloud is filled
   in, because three white strokes that close together cannot be told apart at that size.
+- **Clicking the tray icon now takes a shot** instead of opening the settings window. It does
+  the same as the capture key, so the shot you want is one click away rather than a menu away.
+  The settings window is still on the menu that the right button opens.
 - **Uploading, sharing and deleting are still not built.** A shot stays on your own machine. The
   roadmap in [README.md](README.md) says in which order the rest arrives.

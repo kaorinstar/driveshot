@@ -119,8 +119,9 @@ fn expiry_preview(days: Option<u32>) -> Result<ExpiryPreview, String> {
 
 /// Covers the screens so the user can draw a rectangle on one of them.
 ///
-/// Called by the tray menu, the hotkey, and nothing else. A failure here is shown rather than
-/// swallowed: the user pressed a key and is entitled to know that nothing happened.
+/// Called by the tray menu, a left click on the tray icon, the hotkey, and nothing else. A failure
+/// here is shown rather than swallowed: the user asked for a shot and is entitled to know that
+/// nothing happened.
 fn start_capture(app: &AppHandle) {
     if let Err(error) = capture::begin(app) {
         eprintln!("{error}");
@@ -303,8 +304,9 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let mut tray = TrayIconBuilder::new()
         .tooltip(strings::TRAY_TOOLTIP)
         .menu(&menu)
-        // The menu belongs to the right button. A left click opens the settings window, which is
-        // what a single icon in the tray is expected to do.
+        // The menu belongs to the right button. A left click takes a shot: capture is what
+        // Driveshot is for, and reaching it should not cost a menu. Settings stays in the menu,
+        // which is where a setting is looked for anyway.
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "capture" => capture_requested(app),
@@ -320,7 +322,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 ..
             } = event
             {
-                show_settings(tray.app_handle());
+                capture_requested(tray.app_handle());
             }
         });
 
