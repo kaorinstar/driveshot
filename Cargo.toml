@@ -30,6 +30,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "serd
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+sha2 = { version = "0.10", default-features = false }
 
 # A release build is what users download, so it is built for size and for a useful backtrace.
 # The debug build keeps the defaults, because a slow compile is what hurts there.

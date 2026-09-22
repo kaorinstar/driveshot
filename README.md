@@ -52,10 +52,11 @@ path of the last one, which is the quickest way to find them.
 | Share links | Not started |
 | Automatic deletion | Not started |
 
-Two design decisions are still open: how many cloud drives to support first
-([#2](https://github.com/kaorinstar/driveshot/issues/2)), and whether deletion has to run when the
-user's machine is off ([#3](https://github.com/kaorinstar/driveshot/issues/3)). Both are written
-out in [docs/architecture.md](docs/architecture.md), including what each choice costs.
+**Google Drive is the drive that comes first**, and on its own
+([#2](https://github.com/kaorinstar/driveshot/issues/2)); OneDrive and Dropbox follow afterwards.
+One design decision is still open: whether deletion has to run when the user's machine is off
+([#3](https://github.com/kaorinstar/driveshot/issues/3)). Both are written out in
+[docs/architecture.md](docs/architecture.md), including what each choice costs.
 
 ## Requirements
 
@@ -208,13 +209,13 @@ as `v0.1.0` on `main`, leave the title and description empty, and publish. The t
 
 ## Roadmap
 
-In the order it is planned, and subject to the two open decisions above.
+In the order it is planned, and subject to the open decision above.
 
 1. ~~Tray icon and a global hotkey~~ ([#4](https://github.com/kaorinstar/driveshot/issues/4)) — done.
 2. ~~Region capture, saved locally, with no upload~~ ([#5](https://github.com/kaorinstar/driveshot/issues/5)) — done.
-3. One cloud drive end to end: OAuth sign-in, upload, share link on the clipboard ([#6](https://github.com/kaorinstar/driveshot/issues/6)).
+3. Google Drive end to end: OAuth sign-in, upload, share link on the clipboard ([#6](https://github.com/kaorinstar/driveshot/issues/6)).
 4. The record index on disk, and deletion when a retention runs out ([#7](https://github.com/kaorinstar/driveshot/issues/7)).
-5. The remaining two cloud drives ([#8](https://github.com/kaorinstar/driveshot/issues/8)).
+5. OneDrive and Dropbox ([#8](https://github.com/kaorinstar/driveshot/issues/8)).
 6. Settings that persist: retention, hotkey, which drive ([#9](https://github.com/kaorinstar/driveshot/issues/9)).
 
 ## Contributing

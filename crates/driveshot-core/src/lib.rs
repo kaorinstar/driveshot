@@ -11,9 +11,11 @@
 //! - [`Provider`]: which cloud drive a file went to.
 //! - [`Retention`]: how long a file is kept, and when it falls due for deletion.
 //! - [`ShotRecord`] and [`ShotIndex`]: what was uploaded, where it went, and when.
+//! - [`oauth`]: the authorization URL, the PKCE challenge, and reading the redirect back.
 //!
-//! What it deliberately does not hold: the capture itself, the OAuth exchange, the HTTP calls,
-//! and the tray icon. Those need a screen, a browser or a network, and live in `src-tauri`.
+//! What it deliberately does not hold: the capture itself, the browser and the loopback listener
+//! a sign-in needs, the HTTP calls, and the tray icon. Those need a screen, a browser or a
+//! network, and live in `src-tauri`.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -21,6 +23,7 @@
 
 mod error;
 mod geometry;
+pub mod oauth;
 mod provider;
 mod record;
 mod retention;
