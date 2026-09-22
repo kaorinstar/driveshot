@@ -234,6 +234,20 @@ conversion uses whatever scale factor the window is created under rather than th
 the monitor it is being sent to. So the builder is given a reasonable starting point and
 `set_position`/`set_size` then place the window in physical pixels, where nothing is converted.
 
+### The shot is taken on a thread of its own
+
+`finish_capture` closes the overlays and returns without taking the shot; a thread waits for the
+overlay windows to disappear and captures there. That looks like a way of not blocking the user
+interface for a tenth of a second, and it is not. A Tauri command without `async` runs on the main
+thread, and `tauri-runtime-wry` sends every `close` through the event loop rather than carrying it
+out where it is called. Waiting on the main thread is therefore waiting for work that cannot start
+until the wait is over: the overlays stay up, and their dimming is in the saved image over every
+colour in it (#34). The thread is what lets the event loop run.
+
+For the same reason the thread watches Tauri's list of windows rather than sleeping for a fixed
+time. The window disappearing from that list is the application's own answer to "is it off the
+screen yet"; a number of milliseconds is a guess.
+
 ### `macos-private-api`, and what it costs
 
 The capture overlay is a transparent window. On macOS that needs Tauri's `macos-private-api`

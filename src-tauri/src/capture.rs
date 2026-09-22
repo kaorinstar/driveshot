@@ -20,6 +20,13 @@
 //! logical on Linux and physical on Windows, so the point is the only part that can be relied on.
 //! And the conversion from the user's rectangle to pixels is done by `driveshot_core::pixels_for`,
 //! which measures the scale from the captured image rather than asking any platform for it.
+//!
+//! # Which thread does what
+//!
+//! `begin` and `finish` are called from Tauri commands, which means the main thread, which means
+//! the event loop. Anything the event loop has to carry out - opening a window, closing one -
+//! cannot also be waited for there. So `finish` closes the overlays, returns, and leaves the
+//! waiting and the capture to a thread of its own (#34).
 
 use std::path::PathBuf;
 
@@ -113,25 +120,89 @@ pub fn close_all(app: &AppHandle) {
     }
 }
 
-/// Captures what the user selected on `monitor_index` and writes it to a file.
+/// Captures what the user selected on `monitor_index`, writes it to a file, and hands `done`
+/// either where it was written or what went wrong.
 ///
-/// Returns where it was written. The overlays are closed first, so that they are not in the shot.
-pub fn finish(
-    app: &AppHandle,
-    monitor_index: usize,
-    selection: Selection,
-) -> Result<PathBuf, String> {
+/// **This returns before the shot has been taken**, and it has to. A Tauri command that is not
+/// `async` runs on the main thread, which is the thread that carries the event loop, and closing a
+/// window is a message to that event loop rather than something done where it is asked for. So
+/// waiting here for the overlays to leave the screen would be waiting for work that cannot begin
+/// until this function has returned: the capture would run with the overlays still up, and the
+/// saved image would carry their dimming over every colour in it (#34).
+///
+/// What is left is done on a thread of its own, which is where `done` is called from.
+pub fn finish<F>(app: &AppHandle, monitor_index: usize, selection: Selection, done: F)
+where
+    F: FnOnce(&AppHandle, Result<PathBuf, String>) + Send + 'static,
+{
+    // Read where the monitor is while still on the main thread, which is the thread that answers
+    // for it, and before the overlays go: after that the answer is a round trip to a thread that
+    // is busy being waited on.
+    let geometry = monitors(app).and_then(|monitors| {
+        monitors
+            .get(monitor_index)
+            .copied()
+            .ok_or_else(|| strings::CAPTURE_MONITOR_GONE.to_owned())
+    });
+
     close_all(app);
 
-    let monitors = monitors(app)?;
-    let geometry = *monitors
-        .get(monitor_index)
-        .ok_or_else(|| strings::CAPTURE_MONITOR_GONE.to_owned())?;
+    let geometry = match geometry {
+        Ok(geometry) => geometry,
+        Err(error) => {
+            done(app, Err(error));
+            return;
+        }
+    };
 
-    // The overlays are windows like any other, and a window takes a moment to stop being on the
-    // screen. Capturing immediately catches the overlay in the shot.
-    std::thread::sleep(std::time::Duration::from_millis(120));
+    let app = app.clone();
+    std::thread::spawn(move || {
+        wait_for_the_overlays_to_go(&app);
+        let outcome = shoot(geometry, selection);
+        done(&app, outcome);
+    });
+}
 
+/// How long the overlays are given to leave the screen before the shot is taken regardless.
+///
+/// Reaching this means something is wrong with the event loop, and a dimmed shot is still a better
+/// answer than none at all.
+const OVERLAYS_GONE_DEADLINE: std::time::Duration = std::time::Duration::from_millis(1000);
+
+/// How often the overlays are asked whether they have gone.
+const OVERLAYS_GONE_INTERVAL: std::time::Duration = std::time::Duration::from_millis(10);
+
+/// What the screen is given to redraw itself once the last overlay window has been destroyed.
+///
+/// A window that no longer exists is not the same thing as a screen that has been repainted
+/// without it, and what is captured is the screen.
+const REPAINT: std::time::Duration = std::time::Duration::from_millis(120);
+
+/// Blocks until no overlay window is left, or until the deadline runs out.
+///
+/// An overlay disappears from Tauri's list of windows when it is destroyed, so an empty list is the
+/// application's own answer to "is it off the screen yet" - which is worth far more than a fixed
+/// wait, because the wait that matters is the event loop's and nothing here knows how long that is.
+///
+/// Must not be called on the main thread: the event loop is what this is waiting for.
+fn wait_for_the_overlays_to_go(app: &AppHandle) {
+    let deadline = std::time::Instant::now() + OVERLAYS_GONE_DEADLINE;
+
+    while !overlay_labels(app).is_empty() {
+        if std::time::Instant::now() >= deadline {
+            eprintln!("an overlay was still open a second after it was told to close");
+            break;
+        }
+        std::thread::sleep(OVERLAYS_GONE_INTERVAL);
+    }
+
+    std::thread::sleep(REPAINT);
+}
+
+/// Captures the monitor, cuts the selection out of it and writes it to a file.
+///
+/// Nothing here touches a window, which is what lets it run away from the main thread.
+fn shoot(geometry: MonitorGeometry, selection: Selection) -> Result<PathBuf, String> {
     let (x, y) = geometry.centre();
     let monitor = xcap::Monitor::from_point(x, y)
         .map_err(|error| strings::capture_failed(&error.to_string()))?;

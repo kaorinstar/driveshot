@@ -130,25 +130,29 @@ fn start_capture(app: &AppHandle) {
 ///
 /// The overlay calls this once, on the mouse button coming up. `monitor` is the index the overlay
 /// was opened with, which is the monitor the selection is in.
+///
+/// It returns nothing, and returns before the shot has been taken. This runs on the main thread,
+/// and the main thread is what has to close the overlays first; holding it here is what used to
+/// put their dimming in the saved image (#34). So the outcome arrives at the closure below, on
+/// another thread, and the overlay is told nothing - it is on its way out either way, and a
+/// failure is shown in the settings window rather than on a window that is closing.
 #[tauri::command]
-fn finish_capture(app: AppHandle, monitor: usize, selection: Selection) -> Result<String, String> {
-    match capture::finish(&app, monitor, selection) {
+fn finish_capture(app: AppHandle, monitor: usize, selection: Selection) {
+    capture::finish(&app, monitor, selection, |app, outcome| match outcome {
         Ok(path) => {
             let path = path.display().to_string();
             println!("Shot saved to {path}");
             if let Some(last) = app.try_state::<LastShot>() {
                 if let Ok(mut slot) = last.0.lock() {
-                    *slot = Some(path.clone());
+                    *slot = Some(path);
                 }
             }
-            Ok(path)
         }
         Err(error) => {
             eprintln!("{error}");
-            report(&app, &error);
-            Err(error)
+            report(app, &error);
         }
-    }
+    });
 }
 
 /// Puts the overlays away without taking anything. Escape, or a click that was not a drag.

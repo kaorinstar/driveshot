@@ -36,6 +36,8 @@ in [README.md](README.md).
 - Pressing the key no longer turns the screen white for an instant before it dims.
 - The dimming now reaches the edges of the screen. It used to stop about ten pixels short
   down each side, which also shifted the saved image a little away from what was selected.
+- A saved shot now has the colours that were on the screen. The dimming used to still be on the
+  screen when the shot was taken, so everything in the file came out darker than it really was.
 - **The icon is new.** It is a cloud with an upward arrow inside it, held in a capture frame. It
   is also sharper: every size is now drawn at its own resolution rather than shrunk down from one
   large image, which is what left the tray icon looking soft. Below 40 pixels — the tray, and the
