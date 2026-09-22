@@ -47,5 +47,15 @@ in [README.md](README.md).
 - **Clicking the tray icon now takes a shot** instead of opening the settings window. It does
   the same as the capture key, so the shot you want is one click away rather than a menu away.
   The settings window is still on the menu that the right button opens.
-- **Uploading, sharing and deleting are still not built.** A shot stays on your own machine. The
-  roadmap in [README.md](README.md) says in which order the rest arrives.
+- **You can now sign in to Google Drive**, from the settings window. It opens your browser, you
+  approve it at Google, and the window says it is connected. Driveshot asks for permission to add
+  files to your Drive and to reach nothing else in it; if that permission is not given, it refuses
+  the sign-in rather than half-accepting it.
+- The sign-in lasts until you close Driveshot, so it is done once per run for now.
+- **If you would rather use a Google client of your own**, put a `google-client.json` holding
+  `{"client_id": "...", "client_secret": "..."}` in Driveshot's configuration folder and it is
+  used in place of the built-in one. The settings window shows which of the two is in use, and
+  names the file when there is no client at all.
+- **Uploading, sharing and deleting are still not built.** Signing in proves the connection and
+  nothing more: a shot stays on your own machine. The roadmap in [README.md](README.md) says in
+  which order the rest arrives.
