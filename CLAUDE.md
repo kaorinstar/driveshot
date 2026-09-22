@@ -207,8 +207,9 @@ Quitting is the tray menu's last entry, and nothing else exits the application.
 
 `src-tauri/Info.plist` sets `LSUIElement` so the bundle has no Dock icon, and `main.rs` asks for
 `ActivationPolicy::Accessory` at runtime. The plist covers the packaged application; the runtime
-call covers `tauri dev`, which never reads it. Neither has been tested — nobody has run the macOS
-build.
+call covers `tauri dev`, which never reads it. The plist has now been seen working: the packaged
+application put its icon in the menu bar and nothing in the Dock. The runtime call has not — that
+one needs somebody to run `tauri dev` on a Mac.
 
 ### Nothing asks a platform for a display's scale factor
 
@@ -458,6 +459,12 @@ cause of #34 as well, without setting out to. **A run on a build from `main` wit
 confirmed that: the saved image has the screen's own colours.** Nothing was written for #34 in the
 end; the pull request that had been opened for it was closed unmerged, because it was built on the
 overlays being closed.
+
+A later run, on a build from `main` with #24 in it, checked the new icon. **The tray icon reads
+as a cloud rather than the grey smudge the old one left**, and the taskbar and the installer carry
+it correctly. That is what drawing each size at its own resolution buys: `npx tauri icon`
+resampled one large image down to 16 pixels, which is what the tray asks for at 100% scaling, and
+a mark that detailed does not survive it.
 
 **macOS has now been run, once, and it did not start.** The disk image from a manual `release.yml`
 run was opened on a MacBook Pro 13" (2020, Intel Core i7) on macOS Tahoe 26.7. The application was
