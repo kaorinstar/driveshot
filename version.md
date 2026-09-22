@@ -51,5 +51,8 @@ in [README.md](README.md).
 - **Capture now works on macOS.** It used to fail with "Monitor not found" every time, on any Mac
   whose display is scaled up — which is every Mac with a Retina screen. Nothing was saved and
   macOS never asked to record the screen.
+- **Shots taken on a Mac no longer carry the dimming.** The whole image used to come out darkened,
+  because the screen was photographed before the shading had left it. Driveshot also no longer
+  freezes for a moment when a shot is taken.
 - **Uploading, sharing and deleting are still not built.** A shot stays on your own machine. The
   roadmap in [README.md](README.md) says in which order the rest arrives.

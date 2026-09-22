@@ -173,16 +173,20 @@ pub fn finish(
     monitor_index: usize,
     selection: Selection,
 ) -> Result<PathBuf, String> {
-    hide_all(app);
     stop_capturing(app);
 
-    let monitors = monitors(app)?;
-    let geometry = *monitors
-        .get(monitor_index)
-        .ok_or_else(|| strings::CAPTURE_MONITOR_GONE.to_owned())?;
+    // Hiding the overlays and asking where the monitors are both belong to the thread that owns
+    // the windows. This one is not it - see the note on `on_main` for why that matters.
+    let found = on_main(app, move |app| {
+        hide_all(app);
+        monitors(app).map(|monitors| monitors.get(monitor_index).copied())
+    })?;
+    let geometry = found?.ok_or_else(|| strings::CAPTURE_MONITOR_GONE.to_owned())?;
 
     // The overlays are windows like any other, and a window takes a moment to stop being on the
-    // screen. Capturing immediately catches the overlay in the shot.
+    // screen. Capturing immediately catches the overlay in the shot. This wait is only worth
+    // anything because it happens here rather than on the main thread, which is the thread that
+    // has to run for the screen to be repainted without them (#49).
     std::thread::sleep(std::time::Duration::from_millis(120));
 
     let (x, y) = lookup_point(geometry);
@@ -214,6 +218,36 @@ pub fn finish(
     })?;
 
     Ok(path)
+}
+
+/// Runs `work` on the thread that owns the windows, and waits for its answer.
+///
+/// A capture runs on the async runtime rather than on the main thread, which is what makes the
+/// wait for the screen to clear mean anything: the main thread has to go round its run loop for a
+/// hidden window to stop being drawn, and it cannot do that while a capture is asleep on it
+/// (#49). Everything that genuinely belongs to that thread - hiding a window, asking which
+/// monitors are attached - comes back to it through here.
+///
+/// **Never call this from the main thread.** It would queue `work` behind itself and then wait
+/// for it, which is a deadlock rather than a slow capture. Nothing does: `finish_capture` is
+/// `#[tauri::command(async)]`, and the tray menu and the hotkey reach `begin`, not `finish`.
+fn on_main<T, F>(app: &AppHandle, work: F) -> Result<T, String>
+where
+    F: FnOnce(&AppHandle) -> T + Send + 'static,
+    T: Send + 'static,
+{
+    let (answer, wait) = std::sync::mpsc::channel();
+    let handle = app.clone();
+
+    app.run_on_main_thread(move || {
+        // Nothing is listening only if the capture has already given up, which it cannot: it is
+        // blocked on `recv` below until this arrives.
+        let _ = answer.send(work(&handle));
+    })
+    .map_err(|error| strings::capture_main_thread_unreachable(&error.to_string()))?;
+
+    wait.recv()
+        .map_err(|error| strings::capture_main_thread_unreachable(&error.to_string()))
 }
 
 /// Where the next shot goes: a file named after the moment it was taken, in a folder of Driveshot's

@@ -281,6 +281,23 @@ private API" without replacing the overlay: the alternative is showing a capture
 opaque window instead of dimming a transparent one, which is a different design, not a smaller
 one. #18 has that design written out, with what it would cost.
 
+### `#[tauri::command(async)]` on `finish_capture` and nothing else
+
+Every other command in `main.rs` is a plain `#[tauri::command]`, and this one looks like an
+oversight either way round. It is not, and the difference is the whole of #49.
+
+Tauri runs a command with no `async` — neither on the function nor in the attribute — inline on
+the thread that handles the message, which is the main thread. A capture hides the overlays and
+then waits 120 ms for the screen to clear. On the main thread that wait is worse than useless: a
+hidden window stops being drawn only once that thread goes round its run loop, so the capture
+spends the wait preventing the thing it is waiting for, and photographs its own dimming. Windows
+does not show it, because there the desktop is composited by another process.
+
+The attribute moves the body to the async runtime; the function stays synchronous. What genuinely
+belongs to the main thread — hiding a window, reading `available_monitors` — goes back to it
+through `capture::on_main`. **Never call that from the main thread**: it would queue the work
+behind itself and wait for it.
+
 ### `"signingIdentity": "-"` in `tauri.conf.json`
 
 It looks like a placeholder left behind, or like an attempt at the code signing #12 is about. It is
@@ -495,9 +512,15 @@ The fix in #37 was then built and **the application started from the disk image 
 `xcap` about a point in pixels on a display whose points are half that. macOS never asked for the
 Screen Recording permission, because nothing had yet tried to read the screen.
 
-**Everything past starting is still unverified on macOS**: the tray menu, the settings window,
-capture, and the Screen Recording permission. Treat all of it as untested, and say so rather than
-implying otherwise.
+A build with #40 in it **captured, and the saved rectangle was the one that was drawn** — so the
+scale arithmetic holds on a Retina display, not only in its tests. Two faults came with it, both
+in what the overlay does rather than where: **the saved image carried the dimming** (#49, which is
+#34 on the other platform, and for a different reason), and **the menu bar's status icons are not
+dimmed** because they sit at a window level above the overlay (#50).
+
+**Still unverified on macOS**: the tray menu, the settings window, and the Screen Recording
+permission — nobody has reported whether macOS asked for it. Treat those as untested, and say so
+rather than implying otherwise.
 
 ## Choosing a model for subagents
 
