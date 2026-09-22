@@ -19,7 +19,7 @@ do yet, in a README, a commit message or a reply.
 ## Language policy
 
 - **All code, comments, identifiers, commit messages, and documentation are written in English.**
-  This project is to be published.
+  This repository is public (#10), so anything written here is written for a stranger to read.
 - A file whose name ends `.ja.md` is the Japanese translation of the file beside it:
   `README.ja.md`, `SECURITY.ja.md`, `version.ja.md` and `docs/architecture.ja.md`. When you change
   the English file, update its translation in the same commit so the two stay in sync.
@@ -160,8 +160,14 @@ Full details are in `docs/architecture.md`. The rules that matter most:
   build that reproduces is worth more than a dependency tree that drifts. Never edit either by
   hand; run `cargo`/`npm` and commit what it writes.
 - Every GitHub Action is pinned to a full commit SHA with its version in a comment beside it.
-  Keep it that way when adding one; `git ls-remote https://github.com/<owner>/<repo> refs/tags/<tag>`
-  gives the SHA.
+  Keep it that way when adding one. `git ls-remote https://github.com/<owner>/<repo> refs/tags/<tag>`
+  gives the SHA of an annotated tag's *tag object*, which is not what a workflow can pin; add
+  `^{}` to the ref, or read the `refs/tags/<tag>^{}` line, to get the commit.
+- **A commit message ends with `Co-Authored-By:` and nothing else.** A link to the assistant
+  session that produced the change belongs in the pull request, which is where the reasoning for a
+  change is written anyway; in a commit it is a second copy of that link, permanent, and openable
+  by one person. Four commits made before this rule still carry one. They are on `main` and stay
+  there: this is not worth rewriting shared history for.
 
 ## Working while other sessions are open
 
@@ -310,9 +316,13 @@ place (#7).
 - `.github/workflows/release.yml` — distribution. A `v*` tag publishes a release with a Windows
   installer and a macOS disk image; a manual run produces the same as an artifact and publishes
   nothing. Only this workflow gets `contents: write`.
-- `.github/workflows/report-build-status.yml` — called by both, for pushes only. Opens or
-  comments on an issue labelled `ci-failure`, and comments again on the next success without
-  closing it.
+- `.github/workflows/codeql.yml` — static analysis of this project's own code, which the
+  dependency check covers none of. One job per language, `javascript-typescript` and `rust`, with
+  nothing built for either: both are extracted from source. **Rust support is in public preview**,
+  so a quiet result there means nothing was reported rather than that there is nothing to report.
+- `.github/workflows/report-build-status.yml` — called by `build.yml` and `release.yml`, for
+  pushes only. Opens or comments on an issue labelled `ci-failure`, and comments again on the next
+  success without closing it.
 
 `build.yml` and `release.yml` carry the same build steps on purpose, so each can be read straight
 through. **Change them together.** The one deliberate difference is the version: a release build
@@ -324,17 +334,19 @@ writes the tag into `src-tauri/Cargo.toml` first.
 is the only place a push or a pull request takes the answer from. It is `windows` today: the work
 is aimed at Windows first, then at macOS, and only then at both.
 
-**What this saves is money, not waiting.** Measured on
-[the run on `main` that built both](https://github.com/kaorinstar/driveshot/actions/runs/35595214662),
-the macOS job took 4m20s and the Windows job 12m16s, and they run at the same time. Those are
-first runs on a branch; with the Rust cache warm the Windows job took 5m05s. So a run is about as
-long either way while `APP_PLATFORMS` says `windows`; what falls away is billed minutes.
-This repository is private, and GitHub charges a macOS minute at ten times a Linux one and a
-Windows minute at twice, which put roughly 50 of that run's 80 billed minutes in the macOS job
-alone. The phase after this one is the opposite: with `macos`, a run finishes in about a third of
-the time, because Windows is what makes a run long here.
+**The reason it says `windows` has gone, and the value has not caught up yet (#30).** #19 chose
+it to save billed minutes: this repository was private, GitHub charged a macOS minute at ten times
+a Linux one, and roughly 50 of one run's 80 billed minutes were the macOS job alone. Standard
+runners are free on a public repository, and this one is public as of #10, so there is nothing left
+to save.
 
-What that costs is worth saying plainly, because it is easy to forget:
+Waiting was never the argument either. Measured on
+[the run on `main` that built both](https://github.com/kaorinstar/driveshot/actions/runs/35595214662),
+the macOS job took 4m20s and the Windows job 12m16s, and they run at the same time; with the Rust
+cache warm the Windows job took 5m05s. Windows decides how long a run takes, so dropping macOS
+leaves a run about as long as it was.
+
+What it costs is unchanged, and is now the only thing the value is trading against:
 
 - **While it says `windows`, nothing checks that the code still compiles on macOS.** The first run
   after it is widened again finds everything that broke in between, at once.
@@ -348,8 +360,10 @@ What that costs is worth saying plainly, because it is easy to forget:
 `release.yml` takes the same three words as a **Platforms** input on a manual run, defaulting to
 `both`. A tag ignores the input entirely.
 
-CodeQL is not set up: code scanning is free on public repositories only, so that workflow arrives
-when this repository is published (#10).
+Every action is pinned to a full commit SHA. `.github/dependabot.yml` watches Cargo, npm and the
+actions weekly so that pinning does not mean going stale, and groups the two halves of
+`github/codeql-action`: a workflow whose `init` and `analyze` come from different versions fails
+with a configuration error after uploading nothing.
 
 ## Releasing
 

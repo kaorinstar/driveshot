@@ -138,18 +138,18 @@ Two workflows, split so that a verification run never needs write access to the 
   `contents: write`.
 
 Which platforms `build.yml` compiles the application on is written as `APP_PLATFORMS` at the top
-of that file: `windows`, `macos` or `both`. It says `windows` while the work is aimed at Windows,
-and nothing is learned from a macOS build until the macOS side of the work starts. The two jobs
-run at the same time and the Windows one is the longer of them — 12m16s against 4m20s on the last
-run that built both, and 5m05s once its cache is warm — so this does not make a run much shorter. What it saves is the minutes this
-private repository is billed for, where a macOS runner costs ten times a Linux one: about 50 of
-that run's 80 billed minutes were the macOS job. The cost is that macOS is not compiled at all in
-the meantime; starting the workflow by hand with **Platforms** set to `macos` checks it without a
-commit, and the value goes back to `both` once both platforms are being written. A `v*` tag
-ignores all of this: a release is always packaged for both.
+of that file: `windows`, `macos` or `both`. It says `windows` today, and the reason it does has
+gone: that was to save the minutes a private repository is billed for, where a macOS runner costs
+ten times a Linux one, and standard runners are free on a public repository
+([#30](https://github.com/kaorinstar/driveshot/issues/30)). It was never about waiting — the two
+jobs run at the same time and the Windows one is the longer of them, 12m16s against 4m20s on the
+last run that built both and 5m05s once its cache is warm. What the narrower value costs is that
+macOS is not compiled at all in the meantime; starting the workflow by hand with **Platforms** set
+to `macos` checks it without a commit. A `v*` tag ignores all of this: a release is always
+packaged for both.
 
-A third file, `.github/workflows/report-build-status.yml`, is called by both once their jobs
-finish, and only for pushes. On a failure it opens an issue labelled `ci-failure`, or comments on
+`.github/workflows/report-build-status.yml` is called by both of those once their jobs finish,
+and only for pushes. On a failure it opens an issue labelled `ci-failure`, or comments on
 the one already open rather than opening a second; on the next success it comments on that issue
 too. It never closes it: a green build shows the symptom is gone, not that the cause was
 understood.
@@ -162,9 +162,14 @@ Dependency licences are checked by [cargo-deny](https://github.com/EmbarkStudios
 against `deny.toml`, which lists every licence allowed and says why. Run the same check locally
 with `cargo install cargo-deny && cargo deny check`.
 
-**CodeQL is not set up yet.** Code scanning is free on public repositories only, so that workflow
-arrives when this repository is published
-([#10](https://github.com/kaorinstar/driveshot/issues/10)).
+[CodeQL](https://codeql.github.com/) reads this project's own code, which the dependency check
+above does none of. `.github/workflows/codeql.yml` runs it on every push and pull request, once a
+week, and on request, as one job per language: the Rust workspace and the settings window's
+TypeScript. Nothing is built for the analysis; both are read from source. Findings appear under
+**Security** → **Code scanning**.
+
+**CodeQL's Rust support is in public preview.** A quiet result there means nothing was reported,
+not that there is nothing to report.
 
 ## Releasing
 

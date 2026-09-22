@@ -27,15 +27,18 @@
 # Both of those were first runs on their branch, where the Windows job spends about four minutes
 # restoring and saving its cache; the next run on this branch, with that cache warm, finished the
 # same job in 5m05s. Either way the two run at the same time, so dropping macOS does not make the
-# run much shorter - Windows decides how long it takes. What it saves is billed minutes. This repository is
-# private, and GitHub charges a macOS minute at ten times a Linux one and a Windows minute at
-# twice, which puts roughly 50 of a run's 80 billed minutes in that one job. Dropping Windows
-# instead, once the work moves to macOS, does shorten the run: to about a third.
+# run much shorter - Windows decides how long it takes. Dropping Windows instead, once the work
+# moves to macOS, does shorten the run: to about a third.
 #
-# The cost of narrowing it is plain: while it says windows, nothing here compiles on macOS, and
-# the first run after it is widened again finds whatever broke in between. Set it back to both
-# before that work is finished, and run this workflow by hand on the other platform now and then
-# in the meantime - the Platforms input overrides it for one run without a commit.
+# What narrowing it used to save was billed minutes, back when this repository was private and
+# GitHub charged a macOS minute at ten times a Linux one - roughly 50 of a run's 80 billed minutes
+# in that one job. Standard runners are free on a public repository, and this one is public, so
+# that saving is gone and the value below has not caught up yet (#30).
+#
+# The cost of narrowing it is unchanged and is now the only thing it trades against: while it says
+# windows, nothing here compiles on macOS, and the first run after it is widened again finds
+# whatever broke in between. Run this workflow by hand on the other platform now and then in the
+# meantime - the Platforms input overrides it for one run without a commit.
 
 name: build
 
