@@ -46,6 +46,15 @@ pub enum Error {
     /// The redirect's state was right, but it carried neither an authorization code nor an error.
     #[error("the sign-in reply carried no authorization code")]
     AuthorizationIncomplete,
+
+    /// The token endpoint answered with an OAuth error rather than a set of tokens.
+    ///
+    /// The string is the provider's own `error`, with its `error_description` in brackets when it
+    /// sent one. Two are worth recognising: `invalid_grant` means the code was already used or the
+    /// refresh token has expired, and `invalid_client` means the client identifier no longer names
+    /// anything - which is what a deleted Google Cloud project looks like from here.
+    #[error("the drive refused to issue a token: {0}")]
+    TokenEndpoint(String),
 }
 
 /// The result type this crate returns.

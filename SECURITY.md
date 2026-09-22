@@ -34,10 +34,27 @@ ships rather than after.
 
 - It runs as a normal user process. It asks for no elevation, installs no service, and creates no
   scheduled task.
-- **It makes no network connection of any kind**, because none of the cloud code exists yet.
-- It reads no file of its own and writes none. There are no settings to save yet.
-- It opens one window, which shows a list of cloud drives and a retention setting. Neither does
-  anything beyond being displayed.
+- It captures a region of the screen and writes the image to the user's pictures folder. This
+  needs no network and no account, and it keeps working whatever happens to the rest.
+- **It signs in to Google Drive, and that is the only network connection it makes.** Two hosts,
+  both Google's: the browser is sent to `accounts.google.com`, and the application itself makes
+  one HTTPS request to `oauth2.googleapis.com` to exchange the resulting code for tokens. It
+  uploads nothing, reads nothing from any Drive, and contacts nothing else at all.
+  - The sign-in uses PKCE (RFC 7636) and the loopback redirect of RFC 8252. While it is running,
+    and only then, Driveshot listens on a port on `127.0.0.1` that the operating system picks. A
+    request arriving there is acted on only if it carries the `state` value that sign-in sent out;
+    anything else is answered and ignored, and the port is given up after three minutes.
+  - The scope asked for is `drive.file` and nothing else. If less than that is granted, the
+    sign-in is refused rather than half-accepted.
+- **The tokens are held in memory only.** They go when Driveshot does, so signing in is done once
+  per run. Keeping them across restarts means choosing where they live and what protects them,
+  and that decision is described here before the change that makes it.
+- It reads one file of its own, and only if it exists: `google-client.json` in its configuration
+  folder, which holds an OAuth client of the user's own to use in place of the built-in one. It
+  writes no file of its own. Settings that persist are
+  [#9](https://github.com/kaorinstar/driveshot/issues/9).
+- It opens one window, which shows the cloud drives, the retention setting, the capture key, and
+  the sign-in. Uploading is not built, so no shot has ever left the machine.
 
 ## What it is being built to do
 

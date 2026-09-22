@@ -5,9 +5,10 @@
 Capture part of the screen, keep it on a cloud drive you already own, share the link, and have the
 file delete itself when its retention runs out.
 
-**Driveshot is in early development and has not been released.** Nothing is captured, uploaded,
-shared or deleted yet. What exists is the skeleton described under [Status](#status). This README
-describes what is being built, and says plainly which parts are not there.
+**Driveshot is in early development and has not been released.** Capture works and saves to your
+own machine, and signing in to Google Drive works. Nothing is uploaded, shared or deleted yet.
+This README describes what is being built, and says plainly which parts are not there. The whole
+of it is under [Status](#status).
 
 ## Why
 
@@ -48,7 +49,8 @@ path of the last one, which is the quickest way to find them.
 | Settings window | A skeleton: it lists the drives and shows when a shot would expire |
 | Tray icon and global hotkey | Verified by hand on Windows |
 | Region capture, saved locally | Verified by hand on Windows, at 100%, 125% and 150% scaling |
-| Cloud upload and OAuth | Not started |
+| Signing in to Google Drive | Written, not yet run against a real account |
+| Cloud upload | Not started |
 | Share links | Not started |
 | Automatic deletion | Not started |
 

@@ -75,6 +75,27 @@ cargo install cargo-deny
 cargo deny check
 ```
 
+### The Google OAuth client a build carries
+
+Two optional environment variables are read at compile time by `src-tauri/src/google_client.rs`:
+
+```
+DRIVESHOT_GOOGLE_CLIENT_ID
+DRIVESHOT_GOOGLE_CLIENT_SECRET
+```
+
+**A build without them compiles and runs.** It can do everything except sign in with a built-in
+client, and it says so in the settings window rather than failing at the first request: the
+sentence names the file to write instead, `google-client.json` in Driveshot's configuration
+folder, which is the escape hatch of design rule 6 and works whether or not a build carried a
+client.
+
+Neither value is a secret and neither is in this repository. A desktop client's identifier and
+secret both sit inside the installer, where anyone who wants them can read them - Google's own
+documentation says so, and RFC 8252 says so of every native application. PKCE is what makes the
+sign-in safe. They are kept out of the repository because there is no reason to publish this
+project's own API quota to a search engine, not because publishing them would break anything.
+
 ## Verification
 
 A build proves that the code compiles, not that the application works. Capture, a hotkey, an
@@ -289,7 +310,7 @@ In the order planned, and subject to the one open decision in `docs/architecture
 
 1. ~~Tray icon and a global hotkey (#4)~~ — done.
 2. ~~Region capture, saved locally, with no upload (#5)~~ — done.
-3. Google Drive end to end: OAuth, upload, share link on the clipboard (#6).
+3. Google Drive end to end (#6). Signing in is written; upload and the share link are not.
 4. The record index on disk, and deletion when a retention runs out (#7).
 5. OneDrive and Dropbox (#8).
 6. Settings that persist (#9).

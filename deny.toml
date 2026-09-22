@@ -60,6 +60,9 @@ allow = [
     "MPL-2.0",
     "Unicode-3.0",
     "Unlicense",
+    # ring and untrusted, reached through rustls, which is the TLS the sign-in's token exchange
+    # uses. ISC is the two-clause BSD licence with a line removed; OSI approved and FSF free.
+    "ISC",
     "Zlib",
 ]
 confidence-threshold = 0.9

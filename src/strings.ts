@@ -9,8 +9,26 @@ export const strings = {
 
   destinationHeading: "Where shots are saved",
   destinationNote:
-    "All three drives are listed from the start. None of them works yet; the one being built first is decided in the roadmap.",
+    "All three drives are listed from the start. Google Drive is being built first and is the only one that can be signed in to; uploading is not written yet, so none of them takes a shot.",
   providerNotAvailable: "Not available yet",
+
+  signInHeading: "Google Drive",
+  signInNote:
+    "Signing in lets Driveshot add files to your Drive, and reach nothing else in it. Uploading is not built yet, so this only proves the connection.",
+  signInConnect: "Sign in to Google Drive",
+  signInWorking: "Waiting for your browser\u2026",
+  signInDisconnect: "Sign out",
+  signInNone: "Not signed in.",
+  signInHeld: (when: string) => `Signed in. The connection lasts until ${when}.`,
+  signInRenews: "It renews itself after that, without asking again.",
+  signInExpiresForGood:
+    "After that you will be asked to sign in again, because Google issued no renewal for this sign-in.",
+  signInExpired: "The connection has run out. Sign in again.",
+  signInUnavailable: "Whether Driveshot is signed in could not be read.",
+  signInUsingBuiltInClient: "Using the Google client built into Driveshot.",
+  signInUsingOwnClient: "Using the Google client you supplied.",
+  signInOnlyInMemory:
+    "This lasts until Driveshot is closed. Keeping it across restarts is not built yet.",
 
   overlayHint: "Drag to select an area. Esc to cancel.",
 
