@@ -220,8 +220,20 @@ divides by the scale factor) and a **physical** one on Windows (`dmPelsWidth`). 
 against either is broken on the other, and both look right at 100% where the two are equal.
 
 For the same reason `capture_region` is not used, and monitors are matched to what `xcap` captures
-by `Monitor::from_point` with a physical point inside them — that one means the same thing
-everywhere.
+by `Monitor::from_point` with a point inside them.
+
+**That point is not in the same coordinates on every platform, and saying it was stopped capture
+working on macOS altogether (#40).** `from_point` takes physical pixels only on Windows, where it
+passes them to `MonitorFromPoint`. On macOS it passes them to `CGGetDisplaysWithPoint`, whose
+global display space is in points, and on Linux `xcap` multiplies the point by the scale factor
+before comparing it — points again. A display at 200% therefore has its centre in pixels sitting
+on its bottom right corner in points, outside every monitor, and `xcap` answers `Monitor not
+found`. `capture::lookup_point` is the one place that chooses, and `driveshot_core::MonitorRect`
+does the arithmetic, where it is tested.
+
+The rule the paragraph above states is unaffected: a **crop** still measures its scale from the
+captured image. It is the monitor lookup, and only that, which has to know which space it is
+speaking in.
 
 ### `shadow(false)` on the capture overlay
 
@@ -441,7 +453,9 @@ pixels right of the monitor's left edge.
 The fourth checked both fixes, and **both hold: no white frame, and the dimming reaches the edges
 of the screen**. That run also tried **more than one monitor for the first time, and capture
 worked there** — so the physical placement in `open_overlay` and the matching by
-`Monitor::from_point` are right on the desktop they were written for, rather than only on paper.
+`Monitor::from_point` are right on the desktop they were written for. On Windows, at least: the
+matching turned out to be wrong everywhere else (#40), and a desktop at 100% scaling cannot tell
+the difference.
 
 What it found instead is that **the overlay now takes about a second to appear** (#23). The white
 frame was that same second, spent with a window on the screen rather than without one; waiting for
@@ -475,9 +489,15 @@ the bundle itself is sound and the hotkey registers on macOS. **The icon then ap
 bar**, which is the first thing about the application's appearance on macOS that anyone has seen:
 the tray from #4 and `LSUIElement` both do what they were written to do there.
 
-**Everything past that is still unverified on macOS**: the tray menu, the settings window, capture,
-and the Screen Recording permission. Treat all of it as untested, and say so rather than implying
-otherwise.
+The fix in #37 was then built and **the application started from the disk image with no
+`codesign` run by hand**, its icon in the menu bar. Capture, tried for the first time on macOS,
+**failed before it reached the screen**: `Monitor not found` (#40), from the monitor lookup asking
+`xcap` about a point in pixels on a display whose points are half that. macOS never asked for the
+Screen Recording permission, because nothing had yet tried to read the screen.
+
+**Everything past starting is still unverified on macOS**: the tray menu, the settings window,
+capture, and the Screen Recording permission. Treat all of it as untested, and say so rather than
+implying otherwise.
 
 ## Choosing a model for subagents
 

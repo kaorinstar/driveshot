@@ -54,6 +54,86 @@ pub struct PixelSize {
     pub height: u32,
 }
 
+/// Where a monitor sits on the desktop, and how many pixels it draws for each point.
+///
+/// A windowing system describes a monitor in physical pixels; the windows drawn on it, and the
+/// pointer events they receive, are in points. Both are needed, so both are worked out from one
+/// description rather than gathered separately, where they could disagree.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct MonitorRect {
+    /// Left edge, in physical pixels, in the desktop's coordinates.
+    pub x: i32,
+    /// Top edge, in physical pixels, in the desktop's coordinates.
+    pub y: i32,
+    /// Width in physical pixels.
+    pub width: u32,
+    /// Height in physical pixels.
+    pub height: u32,
+    /// Physical pixels per point. One on a display that is not scaled up.
+    pub scale: f64,
+}
+
+impl MonitorRect {
+    /// The middle of this monitor, in physical pixels.
+    ///
+    /// The middle rather than a corner, wherever a single point has to stand for the monitor: a
+    /// corner is shared with the monitor next to it, and which of the two owns it is exactly the
+    /// sort of thing platforms disagree about.
+    #[must_use]
+    pub fn centre_in_pixels(self) -> (i32, i32) {
+        (
+            self.x.saturating_add_unsigned(self.width / 2),
+            self.y.saturating_add_unsigned(self.height / 2),
+        )
+    }
+
+    /// The middle of this monitor, in points.
+    #[must_use]
+    pub fn centre_in_points(self) -> (i32, i32) {
+        let scale = self.usable_scale();
+        let (x, y) = self.centre_in_pixels();
+        (to_whole_points(x, scale), to_whole_points(y, scale))
+    }
+
+    /// The top left corner of this monitor, in points.
+    #[must_use]
+    pub fn origin_in_points(self) -> (f64, f64) {
+        let scale = self.usable_scale();
+        (f64::from(self.x) / scale, f64::from(self.y) / scale)
+    }
+
+    /// The size of a window covering this monitor, in the points its pointer events use.
+    #[must_use]
+    pub fn size_in_points(self) -> LogicalSize {
+        let scale = self.usable_scale();
+        LogicalSize {
+            width: f64::from(self.width) / scale,
+            height: f64::from(self.height) / scale,
+        }
+    }
+
+    /// The scale to divide by, with a nonsensical one treated as no scaling at all.
+    ///
+    /// Zero, a negative number or a NaN would turn every conversion here into an infinity or a
+    /// NaN, and a monitor whose points are its pixels is a far better guess at what was meant
+    /// than a coordinate no platform can answer about.
+    fn usable_scale(self) -> f64 {
+        if self.scale.is_finite() && self.scale > 0.0 {
+            self.scale
+        } else {
+            1.0
+        }
+    }
+}
+
+/// A coordinate in physical pixels, as the whole number of points nearest the same place.
+fn to_whole_points(pixels: i32, scale: f64) -> i32 {
+    let points = f64::from(pixels) / scale;
+    // Saturating, so a monitor at an absurd coordinate cannot wrap round to the opposite edge of
+    // the desktop.
+    points.round() as i32
+}
+
 /// A rectangle of pixels within a captured image, ready to be cut out of it.
 ///
 /// Always inside the image it was worked out for, and never empty.
@@ -171,6 +251,84 @@ mod tests {
 
     fn surface(width: f64, height: f64) -> LogicalSize {
         LogicalSize { width, height }
+    }
+
+    fn monitor(x: i32, y: i32, width: u32, height: u32, scale: f64) -> MonitorRect {
+        MonitorRect {
+            x,
+            y,
+            width,
+            height,
+            scale,
+        }
+    }
+
+    #[test]
+    fn centre_of_an_unscaled_monitor_is_the_same_in_both_spaces() {
+        let screen = monitor(0, 0, 1920, 1080, 1.0);
+        assert_eq!(screen.centre_in_pixels(), (960, 540));
+        assert_eq!(screen.centre_in_points(), (960, 540));
+    }
+
+    #[test]
+    fn centre_in_points_is_inside_a_retina_monitor() {
+        // A MacBook Pro's built-in display: 1440x900 points, drawn at 2880x1800 pixels. The
+        // centre in pixels is (1440, 900), which in points is off the bottom right corner
+        // entirely - the coordinate that made macOS answer that no monitor was there (#40).
+        let screen = monitor(0, 0, 2880, 1800, 2.0);
+        assert_eq!(screen.centre_in_pixels(), (1440, 900));
+
+        let (x, y) = screen.centre_in_points();
+        assert_eq!((x, y), (720, 450));
+
+        let size = screen.size_in_points();
+        assert!(f64::from(x) < size.width, "{x} is not inside {size:?}");
+        assert!(f64::from(y) < size.height, "{y} is not inside {size:?}");
+    }
+
+    #[test]
+    fn a_second_monitor_keeps_its_own_scale() {
+        // An unscaled monitor to the right of the Retina one above. Its pixel origin is where the
+        // first monitor's pixels end; its point origin is where the first monitor's points end.
+        let screen = monitor(2880, 0, 1920, 1080, 1.0);
+        assert_eq!(screen.centre_in_pixels(), (3840, 540));
+        assert_eq!(screen.centre_in_points(), (3840, 540));
+        assert_eq!(screen.origin_in_points(), (2880.0, 0.0));
+    }
+
+    #[test]
+    fn a_monitor_left_of_the_main_one_has_negative_coordinates() {
+        let screen = monitor(-2880, -200, 2880, 1800, 2.0);
+        assert_eq!(screen.centre_in_pixels(), (-1440, 700));
+        assert_eq!(screen.centre_in_points(), (-720, 350));
+        assert_eq!(screen.origin_in_points(), (-1440.0, -100.0));
+    }
+
+    #[test]
+    fn a_scale_of_one_and_a_half_rounds_to_a_whole_point() {
+        // 2560x1440 pixels at 150% is 1706.67x960 points. The centre lands between two points and
+        // has to pick one; either neighbour is inside the monitor, which is all that is asked.
+        let screen = monitor(0, 0, 2560, 1440, 1.5);
+        let (x, y) = screen.centre_in_points();
+        assert_eq!((x, y), (853, 480));
+
+        let size = screen.size_in_points();
+        assert!(f64::from(x) < size.width, "{x} is not inside {size:?}");
+        assert!(f64::from(y) < size.height, "{y} is not inside {size:?}");
+    }
+
+    #[test]
+    fn a_nonsensical_scale_is_treated_as_no_scaling() {
+        for scale in [0.0, -2.0, f64::NAN, f64::INFINITY] {
+            let screen = monitor(0, 0, 1920, 1080, scale);
+            assert_eq!(
+                screen.centre_in_points(),
+                (960, 540),
+                "a scale of {scale} should fall back to 1"
+            );
+            assert_eq!(screen.origin_in_points(), (0.0, 0.0));
+            assert_eq!(screen.size_in_points(), surface(1920.0, 1080.0));
+        }
     }
 
     fn image(width: u32, height: u32) -> PixelSize {

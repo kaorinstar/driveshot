@@ -48,5 +48,8 @@ in [README.md](README.md).
   Driveshot ships for macOS carried no signature at all. It is still not signed by a certificate
   Apple recognises, so the first time you open it macOS says it cannot verify it: allow it through
   System Settings → Privacy & Security, and it opens from then on.
+- **Capture now works on macOS.** It used to fail with "Monitor not found" every time, on any Mac
+  whose display is scaled up — which is every Mac with a Retina screen. Nothing was saved and
+  macOS never asked to record the screen.
 - **Uploading, sharing and deleting are still not built.** A shot stays on your own machine. The
   roadmap in [README.md](README.md) says in which order the rest arrives.
