@@ -429,17 +429,30 @@ What it found instead is that **the overlay now takes about a second to appear**
 frame was that same second, spent with a window on the screen rather than without one; waiting for
 the page removed the flash and left the wait visible.
 
-The fifth checked that second, after the overlays stopped being built per capture and started
-being built at startup and kept. **It is gone**: the report was that the overlay is much faster.
-That is the only part of #29 a person could judge; everything else about it - the reconciliation
-against `available_monitors`, the deadline for an overlay built mid-capture - is untested until a
-monitor is plugged in during a capture.
+After the fourth check, **the repository was published** (#10). Actions stopped running for a day
+first: the included minutes for a private repository ran out, and every job died in two seconds
+without a runner. Publishing fixed that as a side effect of the reason it was done. CodeQL arrived
+with it, `main` gained a ruleset that requires a pull request and the checks, and nothing can be
+pushed to `main` directly any more.
 
-Between the fourth check and the fifth, **the repository was published** (#10). Actions stopped
-running for a day first: the included minutes for a private repository ran out, and every job
-died in two seconds without a runner. Publishing fixed that as a side effect of the reason it was
-done. CodeQL arrived with it, `main` gained a ruleset that requires a pull request and the five
-checks, and nothing can be pushed to `main` directly any more.
+More runs by hand have happened since, all on Windows. One, on a build from before #29, found
+that **the saved image carried the overlay's dimming over every colour in it** (#34). A capture
+closed the overlays and then waited 120 ms on the main thread for the screen to clear;
+`tauri-runtime-wry` sends every close through the event loop, so that wait was what stopped the
+screen clearing.
+
+#29 hides the overlays instead of closing them, for the speed in #23, and **its own run confirmed
+the speed**. Hiding is carried out where it is asked for rather than queued, so it removed the
+cause of #34 as well, without setting out to. **A run on a build from `main` with #29 in it
+confirmed that: the saved image has the screen's own colours.** Nothing was written for #34 in the
+end; the pull request that had been opened for it was closed unmerged, because it was built on the
+overlays being closed.
+
+A later run, on a build from `main` with #24 in it, checked the new icon. **The tray icon reads
+as a cloud rather than the grey smudge the old one left**, and the taskbar and the installer carry
+it correctly. That is what drawing each size at its own resolution buys: `npx tauri icon`
+resampled one large image down to 16 pixels, which is what the tray asks for at 100% scaling, and
+a mark that detailed does not survive it.
 
 **macOS has not been run.** Its disk image is built by the same workflow and nothing suggests it
 is broken, but nobody has opened it. Treat anything about how the application behaves on macOS as
