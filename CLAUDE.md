@@ -240,6 +240,22 @@ conversion uses whatever scale factor the window is created under rather than th
 the monitor it is being sent to. So the builder is given a reasonable starting point and
 `set_position`/`set_size` then place the window in physical pixels, where nothing is converted.
 
+### The overlays are hidden rather than closed, and built before anyone asks for one
+
+A capture does not create the overlay windows and does not destroy them. They are built at
+startup, one per monitor, hidden; a capture shows them and hides them again. That reads as a leak
+— a window nobody can see, held for the life of the application, on a tool that idles in the tray
+— and it is deliberate. Building a web view and loading a page into it took about a second, and
+that second was the entire delay between pressing the key and the screen dimming (#23).
+
+What it costs is real and is the reason this is written down rather than assumed: a WebView2
+process per monitor for as long as Driveshot runs, a set of windows that has to be reconciled
+against `available_monitors` on every capture because a monitor can be plugged in or unplugged in
+between, and a page that still holds the last capture's selection when the next one starts. The
+last of those is why a capture begins by emitting `capture-begin`: each overlay puts itself back
+to how it began and answers `overlay_ready`, and only then is it shown. That handshake is also
+what keeps a blank web view off the screen (#20) — it is now a round trip rather than a page load.
+
 ### `macos-private-api`, and what it costs
 
 The capture overlay is a transparent window. On macOS that needs Tauri's `macos-private-api`

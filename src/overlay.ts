@@ -4,8 +4,14 @@
 // that rectangle covers - that is driveshot-core's `pixels_for`, working from the size of this
 // page and the size of the captured image, because the two platforms disagree about what a
 // monitor's own width means.
+//
+// This page is not loaded afresh for each shot. Its window is built once, at startup, and kept,
+// because building a web view per monitor took about a second and that second was the whole delay
+// between pressing the key and the screen dimming (#23). So the page still holds the last
+// capture's state when the next one starts, and putting that back is what `restart` below is for.
 
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { strings } from "./strings";
 
 /**
@@ -104,8 +110,8 @@ function start(): void {
     }
 
     finished = true;
-    // The Rust side closes every overlay, takes the shot and saves it. A failure there opens the
-    // settings window and says why, so nothing is reported from this page - it is about to close.
+    // The Rust side hides every overlay, takes the shot and saves it. A failure there opens the
+    // settings window and says why, so nothing is reported from this page.
     void invoke("finish_capture", {
       monitor,
       selection: { x: from.x, y: from.y, width, height },
@@ -125,10 +131,30 @@ function start(): void {
     cancel();
   });
 
-  // The window this page is in was created invisible, because a window appears before the page in
-  // it has painted and what shows in between is the web view's own white background (#20). Two
-  // nested animation frames is the usual way to wait for "has actually painted": the first is
-  // called before the coming frame is rendered, the second after it has been.
+  // Every capture starts here. The window is invisible until `overlay_ready` answers, so what
+  // reaches the screen is this page as it began rather than as the last shot left it.
+  //
+  // Nothing waits for an animation frame before answering, and this is the one place where that
+  // is safe: the page has been drawn since it loaded, and what changes below is two hidden
+  // attributes on elements that are already laid out. Showing a window whose page has drawn
+  // nothing at all is the white flash of #20, and that moment was over long before a key was
+  // pressed - this window was built at startup.
+  const restart = (): void => {
+    origin = null;
+    finished = false;
+    box.hidden = true;
+    hint.hidden = false;
+    void invoke("overlay_ready");
+  };
+
+  void listen("capture-begin", restart);
+
+  // An overlay built while a capture is already running - a monitor plugged in since the last one
+  // - was not listening when that event went out, and does not need to be: it has never held a
+  // selection to clear. It answers once it has drawn itself instead. Two nested animation frames
+  // is the usual way to wait for "has actually painted": the first runs before the coming frame is
+  // rendered, the second after it has been. At startup, where there is no capture running, the
+  // Rust side ignores this.
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       void invoke("overlay_ready");
